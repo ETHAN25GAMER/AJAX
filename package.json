@@ -1,0 +1,46 @@
+{
+  "name": "pestllm",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "typecheck": "tsc --noEmit",
+    "smoke": "tsx --env-file=.env.local scripts/smoke.ts",
+    "set-tier": "tsx --env-file=.env.local scripts/set-tier.ts"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.104.1",
+    "@googlemaps/js-api-loader": "^2.0.2",
+    "@hookform/resolvers": "^5.4.0",
+    "@supabase/ssr": "^0.10.3",
+    "@supabase/supabase-js": "^2.45.0",
+    "@types/google.maps": "^3.64.1",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "date-fns": "^4.3.0",
+    "date-fns-tz": "^3.2.0",
+    "lucide-react": "^1.17.0",
+    "next": "^15.1.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "react-hook-form": "^7.76.1",
+    "tailwind-merge": "^3.6.0",
+    "tailwindcss-animate": "^1.0.7",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "autoprefixer": "^10.5.0",
+    "postcss": "^8.5.15",
+    "tailwindcss": "^3.4.19",
+    "tsx": "^4.19.0",
+    "typescript": "^5.5.0"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

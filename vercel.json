@@ -1,0 +1,20 @@
+{
+  "crons": [
+    {
+      "path": "/api/cron/reminders",
+      "schedule": "0 * * * *"
+    },
+    {
+      "path": "/api/cron/nudges",
+      "schedule": "*/10 * * * *"
+    },
+    {
+      "path": "/api/cron/retention",
+      "schedule": "0 18 * * *"
+    },
+    {
+      "path": "/api/cron/amc",
+      "schedule": "0 1 * * *"
+    }
+  ]
+}

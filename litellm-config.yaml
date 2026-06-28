@@ -1,0 +1,79 @@
+# LiteLLM proxy config for local dev — exposes an Anthropic-compatible
+# /v1/messages endpoint that forwards to Ollama. Production does NOT use this:
+# in prod, ANTHROPIC_BASE_URL is unset and the SDK hits api.anthropic.com.
+#
+# Run it:
+#   pip install "litellm[proxy]"
+#   ollama pull qwen2.5:7b-instruct
+#   ollama pull llava:13b               # only if you want vision (identify_pest)
+#   litellm --config litellm-config.yaml --port 4000
+#
+# Then in .env.local for dev:
+#   ANTHROPIC_BASE_URL=http://localhost:4000
+#   ANTHROPIC_MODEL=ollama/qwen2.5:7b-instruct
+#   ANTHROPIC_MODEL_VISION=ollama/llava:13b
+#
+# Why qwen2.5:7b for the main agent: strongest tool-use among small Ollama
+# models. The agent fires 11 structured tools; weaker models will hallucinate
+# arguments and break the booking flow. Use the 14b or 32b variant if your
+# machine can run it — quality scales noticeably.
+
+model_list:
+  # Kimi K2 via Ollama Cloud. Ollama exposes the cloud model on the standard
+  # localhost:11434 endpoint just like a local pull, so the LiteLLM wiring is
+  # identical. Quality is real K2 (not a local quant) — good for verifying the
+  # agent loop links end-to-end before going to Sonnet in prod.
+  - model_name: ollama/kimi
+    litellm_params:
+      model: ollama_chat/kimi-k2.6:cloud
+      api_base: http://localhost:11434
+      num_ctx: 32768
+
+  # Gemma (local). Good for plain-text round-trips (ping-llm) and chat, but
+  # Gemma's tool-calling in Ollama is weak-to-absent — do NOT expect the 11-tool
+  # agent/booking loop to hold together on it. Use it to verify the wire, not the
+  # full agent. `gemma4:latest` is the bigger/stronger of the two installed.
+  - model_name: ollama/gemma
+    litellm_params:
+      model: ollama_chat/gemma4:latest
+      api_base: http://localhost:11434
+      num_ctx: 16384
+
+  - model_name: ollama/gemma3:4b
+    litellm_params:
+      model: ollama_chat/gemma3:4b
+      api_base: http://localhost:11434
+      num_ctx: 8192
+
+  # Fallbacks — keep in case Kimi misbehaves and you want to A/B against a
+  # more conventional small tool-use model.
+  - model_name: ollama/qwen2.5:7b-instruct
+    litellm_params:
+      model: ollama_chat/qwen2.5:7b-instruct
+      api_base: http://localhost:11434
+      num_ctx: 16384
+
+  - model_name: ollama/llama3.1:8b
+    litellm_params:
+      model: ollama_chat/llama3.1:8b
+      api_base: http://localhost:11434
+      num_ctx: 16384
+
+  # Vision model for identify_pest. llava handles photos; tool-use on llava is
+  # poor, so don't point ANTHROPIC_MODEL (the agent loop) at it — only the
+  # vision tool.
+  - model_name: ollama/llava:13b
+    litellm_params:
+      model: ollama_chat/llava:13b
+      api_base: http://localhost:11434
+      num_ctx: 8192
+
+litellm_settings:
+  # cache_control blocks come through from the agent loop; Anthropic-specific,
+  # local models don't need them. Drop silently instead of erroring.
+  drop_params: true
+
+general_settings:
+  # Local dev only — do not expose this proxy to the public internet without
+  # setting master_key + a real auth header.
+  telemetry: false
