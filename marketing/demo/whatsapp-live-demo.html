@@ -1,0 +1,718 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Havier Pest Control — Live Product Demo</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  html,body { width:1280px; height:720px; overflow:hidden; background:#0a120e; }
+  body { font-family:"Segoe UI",system-ui,sans-serif; }
+  #root { position:relative; width:1280px; height:720px; display:flex; }
+
+  /* ── Left presentation panel ─────────────────────────────── */
+  #panel { width:500px; height:720px; padding:64px 56px; position:relative; z-index:5;
+           background:radial-gradient(900px 700px at -10% -10%, #11251b 0%, #0a120e 62%); }
+  #panel::before { content:""; position:absolute; inset:0; pointer-events:none;
+    background-image:linear-gradient(rgba(34,197,94,.045) 1px, transparent 1px),
+                     linear-gradient(90deg, rgba(34,197,94,.045) 1px, transparent 1px);
+    background-size:44px 44px; }
+  .eyebrow { font-family:Consolas,monospace; font-size:11.5px; letter-spacing:.3em;
+             color:#22c55e; text-transform:uppercase; transition:opacity .4s; }
+  #chapter { margin-top:6px; font-family:Consolas,monospace; font-size:11.5px;
+             letter-spacing:.3em; color:#587f66; text-transform:uppercase; height:16px; }
+  #head { margin-top:22px; font-family:Georgia,serif; font-size:46px; line-height:1.06;
+          color:#f2f7f2; font-weight:700; min-height:150px; }
+  #head em { color:#22c55e; font-style:italic; }
+  #sub { margin-top:16px; font-size:15.5px; line-height:1.55; color:#8fae97; max-width:380px;
+         min-height:96px; }
+  .fadeS { animation:fadeSlide .55s ease-out; }
+  @keyframes fadeSlide { from { opacity:0; transform:translateY(12px) } to { opacity:1; transform:none } }
+
+  #dots { position:absolute; left:56px; bottom:76px; display:flex; gap:10px; }
+  #dots i { width:26px; height:3px; background:#23392c; transition:background .5s; }
+  #dots i.on { background:#22c55e; }
+  #panel .foot { position:absolute; left:56px; right:56px; bottom:34px;
+                 display:flex; justify-content:space-between; align-items:baseline;
+                 font-family:Consolas,monospace; font-size:10.5px; letter-spacing:.2em;
+                 color:#48604f; text-transform:uppercase; }
+  #livebadge { display:inline-flex; align-items:center; gap:8px; }
+  #livebadge .dot { width:7px; height:7px; border-radius:50%; background:#22c55e;
+                    animation:pulse 1.6s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.25} }
+
+  /* ── Right stage ─────────────────────────────────────────── */
+  #stagecol { flex:1; position:relative; }
+  #stagecol::before { content:""; position:absolute; inset:0;
+      background:radial-gradient(500px 420px at 50% 52%, rgba(34,197,94,.07), transparent 70%); }
+  .scene { position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
+           opacity:0; pointer-events:none; transform:translateY(14px) scale(.985);
+           transition:opacity .5s ease, transform .5s ease; }
+  .scene.on { opacity:1; transform:none; }
+
+  /* phone frame (shared) */
+  .phoneframe { position:relative; width:340px; height:664px; background:#000; border-radius:36px;
+                padding:9px; box-shadow:0 30px 80px rgba(0,0,0,.65), 0 0 0 2px #1d2b22; }
+  .screen { position:relative; width:100%; height:100%; border-radius:28px; overflow:hidden;
+            display:flex; flex-direction:column; background:#efe7dd; }
+
+  .statusbar { height:24px; background:#075e54; color:#cfe9e4; display:flex; flex:none;
+               justify-content:space-between; align-items:center; padding:0 16px;
+               font-size:11px; font-weight:600; }
+  #wahead { height:54px; background:#075e54; display:flex; align-items:center; flex:none;
+            gap:10px; padding:0 12px; color:#fff; }
+  #wahead .back { font-size:18px; color:#e5f5f1; }
+  #wahead .av { width:34px; height:34px; border-radius:50%; background:#22c55e;
+                display:flex; align-items:center; justify-content:center;
+                font-weight:700; font-size:13px; color:#06301f; }
+  #wahead .who { flex:1; line-height:1.15; }
+  #wahead .who .n { font-size:14.5px; font-weight:600; display:flex; align-items:center; gap:5px; }
+  #wahead .who .n .vf { display:inline-flex; width:13px; height:13px; border-radius:50%;
+        background:#25d366; color:#fff; font-size:8.5px; align-items:center; justify-content:center; }
+  #wahead .who .s { font-size:11px; color:#b7dcd4; }
+  #wahead .icons { font-size:14px; color:#dff3ee; letter-spacing:9px; }
+
+  #chat { flex:1; overflow-y:auto; padding:10px 10px 14px;
+          background:
+            radial-gradient(circle at 20% 30%, rgba(0,0,0,.018) 0 6px, transparent 7px),
+            radial-gradient(circle at 70% 60%, rgba(0,0,0,.018) 0 5px, transparent 6px),
+            radial-gradient(circle at 45% 85%, rgba(0,0,0,.018) 0 7px, transparent 8px),
+            #efe7dd; }
+  #chat::-webkit-scrollbar { width:0; }
+
+  .chip { align-self:center; margin:10px auto 6px; width:max-content;
+          background:#dcf3fb; color:#4c6a75; font-size:10.5px; font-weight:600;
+          padding:4px 12px; border-radius:8px; box-shadow:0 1px 1px rgba(0,0,0,.08); }
+  .row { display:flex; margin:3px 0; animation:pop .24s cubic-bezier(.2,.9,.3,1.2); }
+  .row.in  { justify-content:flex-start; }
+  .row.out { justify-content:flex-end; }
+  @keyframes pop { from { transform:translateY(9px) scale(.96); opacity:0 } to { transform:none; opacity:1 } }
+  .bub { max-width:80%; border-radius:9px; padding:6.5px 9px 4.5px;
+         box-shadow:0 1px 1px rgba(0,0,0,.10); font-size:13.2px; line-height:1.35;
+         color:#111b21; position:relative; }
+  .in  .bub { background:#fff; border-top-left-radius:2px; }
+  .out .bub { background:#d9fdd3; border-top-right-radius:2px; }
+  .bub .meta { display:flex; justify-content:flex-end; gap:4px; align-items:center;
+               margin-top:2px; font-size:10px; color:#8696a0; }
+  .bub .meta .ticks { color:#53bdeb; font-size:10.5px; letter-spacing:-2px; }
+  .bub b { font-weight:700; }
+  .btnrow { border-top:1px solid #e6e6e6; margin:6px -9px -4.5px; }
+  .wabtn { padding:9px 6px; text-align:center; color:#00a5f4; font-size:13px;
+           font-weight:500; border-top:1px solid #e6e6e6; position:relative; }
+  .wabtn:first-child { border-top:none; }
+  .wabtn.pressed { background:rgba(0,165,244,.12); }
+  .wabtn .ic { margin-right:5px; }
+  .typing { display:inline-flex; gap:4px; padding:10px 12px; }
+  .typing i { width:6.5px; height:6.5px; border-radius:50%; background:#9aa8af;
+              animation:blink 1.1s infinite; }
+  .typing i:nth-child(2){ animation-delay:.18s } .typing i:nth-child(3){ animation-delay:.36s }
+  @keyframes blink { 0%,60%,100%{opacity:.35} 30%{opacity:1} }
+
+  #sheetveil { position:absolute; inset:0; background:rgba(0,0,0,.35); opacity:0;
+               transition:opacity .25s; pointer-events:none; }
+  #sheet { position:absolute; left:0; right:0; bottom:-100%; background:#fff;
+           border-radius:16px 16px 0 0; transition:bottom .3s ease-out; max-height:76%;
+           display:flex; flex-direction:column; box-shadow:0 -6px 30px rgba(0,0,0,.25); }
+  #sheet .grab { width:36px; height:4px; border-radius:2px; background:#d5dbdf; margin:8px auto 2px; }
+  #sheet h3 { text-align:center; font-size:14px; color:#111b21; padding:7px 0 9px;
+              border-bottom:1px solid #eef1f2; }
+  #sheetrows { overflow-y:auto; padding:2px 0 6px; }
+  .srow { display:flex; align-items:center; gap:12px; padding:10px 18px; }
+  .srow .rad { width:17px; height:17px; border-radius:50%; border:2px solid #b8c1c6; flex:none; }
+  .srow.sel .rad { border-color:#00a5f4; box-shadow:inset 0 0 0 4.2px #00a5f4; }
+  .srow .tt { font-size:13.5px; color:#111b21; }
+  .srow .dd { font-size:11.5px; color:#8696a0; margin-top:1px; }
+  #sheetsend { margin:6px 16px 14px; background:#00a5f4; color:#fff; text-align:center;
+               border-radius:22px; padding:9px; font-size:13.5px; font-weight:600;
+               opacity:.4; transition:opacity .2s; }
+  #sheetsend.ready { opacity:1; }
+
+  .ripple { position:absolute; width:44px; height:44px; border-radius:50%;
+            background:rgba(0,90,150,.25); border:2px solid rgba(0,90,150,.35);
+            transform:translate(-50%,-50%) scale(.4); animation:rip .5s ease-out forwards;
+            pointer-events:none; z-index:60; }
+  @keyframes rip { to { transform:translate(-50%,-50%) scale(1.25); opacity:0 } }
+
+  /* ── Admin console scene ─────────────────────────────────── */
+  #browser { width:700px; height:560px; background:#f6f4ee; border-radius:10px; overflow:hidden;
+             box-shadow:0 30px 80px rgba(0,0,0,.6), 0 0 0 1px #2a3d31; display:flex;
+             flex-direction:column; }
+  #bchrome { height:36px; background:#e5e1d8; display:flex; align-items:center; gap:8px;
+             padding:0 14px; flex:none; }
+  #bchrome .c { width:11px; height:11px; border-radius:50%; }
+  #bchrome .url { flex:1; margin-left:10px; background:#f6f4ee; border-radius:6px;
+                  font-family:Consolas,monospace; font-size:11.5px; color:#6b7a70;
+                  padding:4px 12px; }
+  #bbody { flex:1; display:flex; min-height:0; }
+  #bside { width:170px; background:#10231a; color:#8fae97; padding:18px 0; flex:none; }
+  #bside .logo { font-family:Consolas,monospace; font-size:10px; letter-spacing:.24em;
+                 color:#22c55e; padding:0 18px 14px; text-transform:uppercase; }
+  #bside .nav { padding:8px 18px; font-size:13px; display:flex; justify-content:space-between;
+                align-items:center; }
+  #bside .nav.on { background:#1a3527; color:#fff; border-left:3px solid #22c55e; padding-left:15px; }
+  #bside .badge { background:#dc2626; color:#fff; border-radius:9px; font-size:10px;
+                  padding:1px 7px; font-weight:700; opacity:0; transition:opacity .4s; }
+  #bside .badge.show { opacity:1; animation:pulse 1.4s infinite; }
+  #bmain { flex:1; padding:22px 26px; overflow:hidden; }
+  #bmain .ey { font-family:Consolas,monospace; font-size:9.5px; letter-spacing:.2em;
+               color:#8a9a8f; text-transform:uppercase; }
+  #bmain h2 { font-family:Georgia,serif; font-size:30px; color:#17211a; margin-top:6px; }
+  .tbl { margin-top:16px; border:1px solid #ddd8cc; background:#fff; }
+  .trow { display:grid; grid-template-columns:120px 1fr 90px 84px; gap:8px; padding:10px 14px;
+          font-size:12.5px; color:#333f37; border-top:1px solid #eee9df; align-items:center; }
+  .trow.hd { font-family:Consolas,monospace; font-size:9.5px; letter-spacing:.14em;
+             color:#8a9a8f; text-transform:uppercase; border-top:none; background:#faf8f3; }
+  .trow .code { font-family:Consolas,monospace; font-size:11.5px; }
+  .pill { font-size:10.5px; font-weight:600; padding:2px 9px; border-radius:10px; width:max-content; }
+  .pill.g { background:#dcfce7; color:#15803d; }
+  .pill.b { background:#dbeafe; color:#1d4ed8; }
+  .trow.new { background:#f0fdf4; animation:rowin .6s ease-out; box-shadow:inset 3px 0 0 #22c55e; }
+  @keyframes rowin { from { opacity:0; transform:translateY(-8px) } to { opacity:1; transform:none } }
+  .hidden { display:none; }
+  #convocard { margin-top:14px; border:1px solid #ddd8cc; background:#fff; padding:12px 14px;
+               opacity:0; transform:translateY(10px); transition:opacity .5s, transform .5s; }
+  #convocard.show { opacity:1; transform:none; }
+  #convocard .cl { font-size:12px; color:#333f37; padding:3px 0; }
+  #convocard .cl b { color:#0f766e; font-weight:600; }
+  #convocard .who { font-family:Consolas,monospace; font-size:9.5px; letter-spacing:.14em;
+                    color:#8a9a8f; text-transform:uppercase; margin-bottom:6px;
+                    display:flex; justify-content:space-between; }
+  #takeover { font-size:10.5px; font-weight:600; color:#b45309; background:#fef3c7;
+              border-radius:10px; padding:2px 9px; }
+
+  /* ── Admin console: generic page-tour bits (Overview/Escalations/Dispatch/
+       AMC/Conversations/Customers/Campaigns/Journeys/KPI/Pricing/Users) ──── */
+  #pagebody { animation:pgin .38s ease-out; }
+  @keyframes pgin { from { opacity:0; transform:translateY(8px) } to { opacity:1; transform:none } }
+  .statrow { display:flex; gap:12px; margin-top:16px; }
+  .stat { flex:1; border:1px solid #ddd8cc; background:#fff; padding:12px 14px; }
+  .stat .n { font-family:Georgia,serif; font-size:22px; color:#17211a; }
+  .stat .l { font-family:Consolas,monospace; font-size:9px; letter-spacing:.12em;
+             color:#8a9a8f; text-transform:uppercase; margin-top:3px; }
+  .stat .d { font-size:10.5px; color:#16a34a; margin-top:2px; }
+  .esccard { border:1px solid #ddd8cc; background:#fff; padding:10px 14px; margin-top:10px; }
+  .esccard .top { display:flex; justify-content:space-between; align-items:center; }
+  .esccard .msg { font-size:12.5px; color:#333f37; margin-top:5px; line-height:1.4; }
+  .esccard .meta { font-family:Consolas,monospace; font-size:9.5px; color:#8a9a8f;
+                   margin-top:5px; letter-spacing:.06em; }
+  .pill.r { background:#fee2e2; color:#b91c1c; }
+  .pill.a { background:#fef3c7; color:#b45309; }
+  .techrow { display:flex; align-items:center; gap:10px; border:1px solid #ddd8cc;
+             background:#fff; padding:10px 14px; margin-top:8px; }
+  .techrow .dot { width:8px; height:8px; border-radius:50%; flex:none; }
+  .techrow .dot.live { background:#22c55e; animation:pulse 1.6s infinite; }
+  .techrow .dot.idle { background:#c7c2b4; }
+  .techrow .nm { font-size:12.5px; font-weight:600; color:#17211a; width:96px; flex:none; }
+  .techrow .st { font-size:11.5px; color:#4b5a51; flex:1; }
+  .techrow .eta { font-family:Consolas,monospace; font-size:10px; color:#8a9a8f; }
+  .convrow { border:1px solid #ddd8cc; background:#fff; padding:10px 14px; margin-top:8px; }
+  .convrow .nm { font-size:12.5px; font-weight:600; color:#17211a; }
+  .convrow .pv { font-size:11.5px; color:#4b5a51; margin-top:3px; }
+  .convrow .ago { float:right; font-family:Consolas,monospace; font-size:9.5px; color:#8a9a8f; }
+  .custrow { display:flex; align-items:center; gap:10px; border:1px solid #ddd8cc;
+             background:#fff; padding:10px 14px; margin-top:8px; }
+  .custrow .nm { font-size:12.5px; font-weight:600; color:#17211a; width:110px; flex:none; }
+  .tagchip { font-size:9.5px; font-weight:600; background:#eef1ec; color:#4b5a51;
+             border-radius:8px; padding:2px 8px; margin-right:4px; }
+  .custrow .ltv { margin-left:auto; font-family:Consolas,monospace; font-size:11px; color:#15803d; }
+  .campcard, .jrncard { border:1px solid #ddd8cc; background:#fff; padding:12px 14px; margin-top:12px; }
+  .campcard .nm, .jrncard .nm { font-size:13.5px; font-weight:600; color:#17211a; }
+  .campcard .meta, .jrncard .meta { font-family:Consolas,monospace; font-size:10px;
+                                     color:#8a9a8f; margin-top:5px; }
+  .steprow { display:flex; align-items:center; gap:6px; margin-top:9px; font-size:11px;
+             color:#4b5a51; flex-wrap:wrap; }
+  .stepchip { background:#f0fdf4; border:1px solid #bbf7d0; color:#15803d; border-radius:6px;
+              padding:3px 9px; font-size:10.5px; }
+  .steparw { color:#c7c2b4; }
+  .pricerow { display:flex; justify-content:space-between; border-top:1px solid #eee9df;
+              padding:9px 0; font-size:12.5px; color:#333f37; }
+  .pricerow:first-child { border-top:none; }
+  .pricerow .amt { font-family:Consolas,monospace; color:#15803d; font-weight:600; }
+  .userrow { display:flex; align-items:center; gap:12px; border:1px solid #ddd8cc;
+             background:#fff; padding:10px 14px; margin-top:8px; }
+  .userrow .nm { font-size:12.5px; font-weight:600; color:#17211a; flex:1; }
+
+  /* ── Technician app scene ────────────────────────────────── */
+  #techscreen { background:#f6f4ee; }
+  #techtop { padding:18px 18px 10px; flex:none; }
+  #techtop .ey { font-family:Consolas,monospace; font-size:9.5px; letter-spacing:.2em;
+                 color:#8a9a8f; text-transform:uppercase; }
+  #techtop h2 { font-family:Georgia,serif; font-size:30px; color:#17211a; margin-top:4px; }
+  #techtop .d { font-size:12.5px; color:#6b7a70; margin-top:2px; }
+  #jobcard { margin:10px 16px; background:#fff; border:1px solid #ddd8cc; padding:16px; }
+  #jobcard .tm { display:flex; justify-content:space-between; align-items:center; }
+  #jobcard .tm .t { font-family:Consolas,monospace; font-size:13px; color:#17211a; font-weight:700; }
+  #jobcard h3 { font-family:Georgia,serif; font-size:20px; color:#17211a; margin-top:10px; }
+  #jobcard .ad { font-size:13px; color:#4b5a51; margin-top:6px; line-height:1.45; }
+  #jobcard .cd { font-family:Consolas,monospace; font-size:11px; color:#8a9a8f; margin-top:8px; }
+  #jobbtns { display:flex; gap:10px; margin-top:16px; }
+  #jobbtns .o { flex:1; text-align:center; border:1px solid #b9c4bc; color:#3c4a41;
+                padding:10px 0; font-size:13px; font-weight:600; }
+  #jobbtns .p { flex:1.4; text-align:center; background:#16a34a; color:#fff; position:relative;
+                padding:10px 0; font-size:13px; font-weight:700; }
+  #tripbar { margin:0 16px; background:#dcfce7; border:1px solid #86efac; color:#15803d;
+             font-size:12.5px; font-weight:600; padding:10px 12px; opacity:0;
+             transform:translateY(8px); transition:opacity .45s, transform .45s; }
+  #tripbar.show { opacity:1; transform:none; }
+  #photostrip { display:flex; gap:8px; margin:12px 16px; }
+  #photostrip .ph { flex:1; aspect-ratio:1; background:#e7e2d7; border:1px dashed #c4bfae;
+                    display:flex; align-items:center; justify-content:center; color:#a09a87;
+                    font-size:20px; }
+
+  .replay { position:absolute; right:18px; top:14px; z-index:99; background:#14251c;
+            color:#8fae97; border:1px solid #2c4636; border-radius:6px; padding:7px 14px;
+            font-family:Consolas,monospace; font-size:12px; cursor:pointer; }
+  .replay:hover { color:#fff; border-color:#22c55e; }
+</style>
+</head>
+<body>
+<div id="root">
+  <aside id="panel">
+    <div class="eyebrow">Havier Pest Control · AI Booking System</div>
+    <div id="chapter"></div>
+    <h1 id="head"></h1>
+    <p id="sub"></p>
+    <div id="dots"><i></i><i></i><i></i><i></i><i></i></div>
+    <div class="foot">
+      <span id="livebadge"><span class="dot"></span>LIVE SYSTEM</span>
+      <span>WHATSAPP · CONSOLE · TECH APP</span>
+    </div>
+  </aside>
+
+  <div id="stagecol">
+    <!-- Scene: customer WhatsApp -->
+    <div class="scene" id="scene-wa">
+      <div class="phoneframe">
+        <div class="screen">
+          <div class="statusbar"><span id="clock">10:12</span><span>▂▄▆ 📶 76%</span></div>
+          <div id="wahead">
+            <span class="back">‹</span><span class="av">HP</span>
+            <span class="who">
+              <span class="n">Havier Pest Control <span class="vf">✓</span></span>
+              <span class="s" id="presence">online</span>
+            </span>
+            <span class="icons">▤ ✆</span>
+          </div>
+          <div id="chat"></div>
+          <div id="sheetveil"></div>
+          <div id="sheet">
+            <div class="grab"></div><h3 id="sheettitle"></h3>
+            <div id="sheetrows"></div><div id="sheetsend">Send</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Scene: admin console -->
+    <div class="scene" id="scene-admin">
+      <div id="browser">
+        <div id="bchrome">
+          <span class="c" style="background:#f87171"></span>
+          <span class="c" style="background:#fbbf24"></span>
+          <span class="c" style="background:#34d399"></span>
+          <span class="url" id="burl">havier.app/admin/overview</span>
+        </div>
+        <div id="bbody">
+          <div id="bside">
+            <div class="logo">Havier · Admin</div>
+            <div class="nav" data-key="overview">Overview</div>
+            <div class="nav" data-key="escalations">Escalations <span class="badge" id="escbadge">1</span></div>
+            <div class="nav" data-key="appointments">Appointments</div>
+            <div class="nav" data-key="dispatch">Dispatch</div>
+            <div class="nav" data-key="amc">AMC</div>
+            <div class="nav" data-key="conversations">Conversations</div>
+            <div class="nav" data-key="customers">Customers</div>
+            <div class="nav" data-key="campaigns">Campaigns</div>
+            <div class="nav" data-key="journeys">Journeys</div>
+            <div class="nav" data-key="kpi">KPI</div>
+            <div class="nav" data-key="pricing">Pricing</div>
+            <div class="nav" data-key="users">Users</div>
+          </div>
+          <div id="bmain">
+            <div id="pagebody"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Scene: technician app -->
+    <div class="scene" id="scene-tech">
+      <div class="phoneframe">
+        <div class="screen" id="techscreen">
+          <div class="statusbar" style="background:#10231a;color:#cfe9e4">
+            <span>12:24</span><span>▂▄▆ 📶 64%</span></div>
+          <div id="techtop">
+            <div class="ey">Technician · Rahul</div>
+            <h2>Today.</h2>
+            <div class="d">Wednesday, 22 July — 1 job assigned</div>
+          </div>
+          <div id="jobcard">
+            <div class="tm"><span class="t">13:00 — 14:30</span><span class="pill g">BOOKED</span></div>
+            <h3>Cockroaches treatment</h3>
+            <div class="ad">Ethan<br>14B Rustom Baug, Marine Lines</div>
+            <div class="cd">CODE R7KM3P · CONFIRMED BY CUSTOMER ✓</div>
+            <div id="jobbtns">
+              <div class="o">Navigate</div>
+              <div class="p" id="starttrip">Start trip →</div>
+            </div>
+          </div>
+          <div id="tripbar">● EN ROUTE — customer notified · live tracking on</div>
+          <div id="photostrip">
+            <div class="ph">＋</div><div class="ph">＋</div><div class="ph">＋</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+<button class="replay" onclick="window.replay()">↻ replay</button>
+
+<script>
+const chat  = document.getElementById("chat");
+const sheet = document.getElementById("sheet");
+const veil  = document.getElementById("sheetveil");
+const clockEl = document.getElementById("clock");
+const presence = document.getElementById("presence");
+const dots = [...document.querySelectorAll("#dots i")];
+
+let gen = 0;           // generation token: a new run() orphans any older loop
+let mins = 10*60 + 12;
+const SPEED = 1.6;     // global pacing multiplier — higher = slower, easier to follow
+
+// Generation-aware sleep: if replay() started a newer run while we waited,
+// reject so the stale loop unwinds instead of double-appending messages.
+function sleep(ms){
+  const g = gen;
+  return new Promise((res, rej) =>
+    setTimeout(() => (g === gen ? res() : rej(new Error("superseded"))), ms * SPEED));
+}
+const fmt = () => `${String(Math.floor(mins/60)).padStart(2,"0")}:${String(mins%60).padStart(2,"0")}`;
+function tickClock(n=1){ mins += n; clockEl.textContent = fmt(); }
+function scrollDown(){ chat.scrollTo({ top: chat.scrollHeight, behavior:"smooth" }); }
+const md = s => s.replace(/&/g,"&amp;").replace(/</g,"&lt;")
+                 .replace(/\*([^*]+)\*/g,"<b>$1</b>").replace(/\n/g,"<br>");
+
+function chip(label){
+  const d = document.createElement("div");
+  d.className = "chip"; d.textContent = label;
+  chat.appendChild(d); scrollDown();
+}
+function bubble(side, html, extra=""){
+  const row = document.createElement("div"); row.className = `row ${side}`;
+  row.innerHTML = `<div class="bub">${html}
+    <div class="meta">${fmt()}${side==="out" ? ' <span class="ticks">✓✓</span>':""}</div>${extra}</div>`;
+  chat.appendChild(row); scrollDown(); return row;
+}
+async function typing(ms){
+  presence.textContent = "typing…";
+  const row = document.createElement("div"); row.className = "row in";
+  row.innerHTML = `<div class="bub typing"><i></i><i></i><i></i></div>`;
+  chat.appendChild(row); scrollDown();
+  try { await sleep(ms); } finally { row.remove(); presence.textContent = "online"; }
+}
+async function agentSays(text, ms=650){ await typing(ms); tickClock(); return bubble("in", md(text)); }
+async function customerSays(text){ tickClock(); bubble("out", md(text)); await sleep(480); }
+async function agentButtons(text, labels, ms=650){
+  await typing(ms); tickClock();
+  const btns = labels.map(l => `<div class="wabtn"><span class="ic">↩</span>${l}</div>`).join("");
+  return bubble("in", md(text), `<div class="btnrow">${btns}</div>`);
+}
+function rippleAt(el, host){
+  const frame = host ?? el.closest(".phoneframe, #browser");
+  const pr = frame.getBoundingClientRect();
+  const r  = el.getBoundingClientRect();
+  const rip = document.createElement("div"); rip.className = "ripple";
+  rip.style.left = (r.left - pr.left + r.width/2) + "px";
+  rip.style.top  = (r.top  - pr.top  + r.height/2) + "px";
+  frame.appendChild(rip);
+  setTimeout(() => rip.remove(), 550);
+}
+async function tapButton(row, idx){
+  const btn = row.querySelectorAll(".wabtn")[idx];
+  btn.scrollIntoView({block:"nearest"});
+  await sleep(380); rippleAt(btn); btn.classList.add("pressed");
+  await sleep(340);
+  await customerSays(btn.textContent.replace("↩","").trim());
+}
+async function agentList(text, cta, ms=650){
+  await typing(ms); tickClock();
+  return bubble("in", md(text),
+    `<div class="btnrow"><div class="wabtn"><span class="ic">☰</span>${cta}</div></div>`);
+}
+async function openList(row, title, rows, pickIdx){
+  const btn = row.querySelector(".wabtn");
+  await sleep(380); rippleAt(btn); btn.classList.add("pressed"); await sleep(300);
+  document.getElementById("sheettitle").textContent = title;
+  document.getElementById("sheetrows").innerHTML = rows.map(r =>
+    `<div class="srow"><span class="rad"></span><span><div class="tt">${r.t}</div>${r.d?`<div class="dd">${r.d}</div>`:""}</span></div>`).join("");
+  document.getElementById("sheetsend").classList.remove("ready");
+  veil.style.opacity = 1; sheet.style.bottom = 0;
+  await sleep(700);
+  const target = document.querySelectorAll(".srow")[pickIdx];
+  target.scrollIntoView({block:"nearest"});
+  rippleAt(target); target.classList.add("sel");
+  document.getElementById("sheetsend").classList.add("ready");
+  await sleep(480);
+  rippleAt(document.getElementById("sheetsend"));
+  await sleep(260);
+  sheet.style.bottom = "-100%"; veil.style.opacity = 0;
+  await sleep(300);
+  await customerSays(rows[pickIdx].t);
+}
+function scene(id){
+  document.querySelectorAll(".scene").forEach(s => s.classList.toggle("on", s.id === `scene-${id}`));
+}
+
+/* ── Admin console page tour — every real sidebar section ─────────────── */
+// Eyebrows/titles below are the exact copy from the live app (captured off
+// the running admin console), so the mockup stays honest to the real thing.
+const ADMIN_PAGES = {
+  overview: { url:"havier.app/admin", ey:"Today · Snapshot", h2:"Overview.", body:`
+    <div class="statrow">
+      <div class="stat"><div class="n">4</div><div class="l">Jobs today</div></div>
+      <div class="stat"><div class="n">2</div><div class="l">Open escalations</div></div>
+      <div class="stat"><div class="n">₹58.4K</div><div class="l">This week</div><div class="d">↑ 12%</div></div>
+    </div>
+    <div class="esccard" style="margin-top:16px">
+      <div class="top"><b style="font-size:12.5px;color:#17211a">Up next</b></div>
+      <div class="meta">TUE 21 JUL · 09:00 — Priya Mehta · Termites, Churchgate</div>
+      <div class="meta">WED 22 JUL · 13:00 — Ethan · Cockroaches, Marine Lines</div>
+    </div>` },
+  escalations: { url:"havier.app/admin/escalations", ey:"Triage · Inbox", h2:"Escalations.", body:`
+    <div class="esccard">
+      <div class="top"><span class="pill r">HIGH</span><span class="meta">12m ago</span></div>
+      <div class="msg">"Wasp nest near the kids' play area — can someone come today?"</div>
+      <div class="meta">+91 90000 22110</div>
+    </div>
+    <div class="esccard">
+      <div class="top"><span class="pill a">NORMAL</span><span class="meta">40m ago</span></div>
+      <div class="msg">Asking about a refund for a missed appointment last week.</div>
+      <div class="meta">+91 98202 91847</div>
+    </div>` },
+  appointments: { url:"havier.app/admin/appointments", ey:"Operations · Schedule", h2:"Appointments.", body:`
+    <div class="tbl">
+      <div class="trow hd"><span>Slot</span><span>Customer</span><span>Code</span><span>Tech</span></div>
+      <div class="trow new hidden" id="newrow">
+        <span>Wed 22 Jul · 13:00</span><span>Ethan — Cockroaches · Marine Lines</span>
+        <span class="code">R7KM3P</span><span class="pill g">Rahul · auto</span>
+      </div>
+      <div class="trow"><span>Tue 21 Jul · 09:00</span><span>Priya Mehta — Termites · Churchgate</span>
+        <span class="code">QX41BD</span><span class="pill g">Sourav</span></div>
+      <div class="trow"><span>Tue 21 Jul · 15:00</span><span>Rajesh Gupta — Rats · Grant Road</span>
+        <span class="code">MK83HZ</span><span class="pill b">Unassigned</span></div>
+    </div>
+    <div id="convocard">
+      <div class="who"><span>Conversation · +91 96534 11753</span><span id="takeover">TAKE OVER</span></div>
+      <div class="cl"><b>Customer</b> — Confirm booking</div>
+      <div class="cl"><b>Asha</b> — You're booked! ✅ Confirmation code: R7KM3P…</div>
+    </div>` },
+  dispatch: { url:"havier.app/admin/dispatch", ey:"Field · Live", h2:"Dispatch.", body:`
+    <div class="techrow"><span class="dot live"></span><span class="nm">Rahul K.</span>
+      <span class="st">En route — 14B Rustom Baug, Marine Lines</span><span class="eta">ETA 12:50 PM</span></div>
+    <div class="techrow"><span class="dot live"></span><span class="nm">Sourav D.</span>
+      <span class="st">On site — Churchgate, termite inspection</span><span class="eta">since 11:40</span></div>
+    <div class="techrow"><span class="dot idle"></span><span class="nm">Priya S.</span>
+      <span class="st">Idle — no active job</span><span class="eta"></span></div>` },
+  amc: { url:"havier.app/admin/amc", ey:"Recurring · Contracts", h2:"AMC.", body:`
+    <div class="tbl">
+      <div class="trow hd"><span>Customer</span><span>Pest</span><span>Renews</span><span>Status</span></div>
+      <div class="trow"><span>Priya Mehta</span><span>Termites</span><span>14 Sep 2026</span><span class="pill g">Active</span></div>
+      <div class="trow"><span>Rajesh Gupta</span><span>General pest</span><span>02 Aug 2026</span><span class="pill a">Renewal due</span></div>
+    </div>` },
+  conversations: { url:"havier.app/admin/conversations", ey:"Customer history · Transcripts", h2:"Conversations.", body:`
+    <div class="convrow"><span class="ago">2m ago</span><div class="nm">Ethan</div>
+      <div class="pv">"You're booked! ✅ Confirmation code: R7KM3P…"</div></div>
+    <div class="convrow"><span class="ago">1h ago</span><div class="nm">Priya Mehta</div>
+      <div class="pv">"Termites anywhere in the property?"</div></div>` },
+  customers: { url:"havier.app/admin/customers", ey:"CRM · People", h2:"Customers.", body:`
+    <div class="custrow"><span class="nm">Ethan</span><span class="tagchip">new</span><span class="ltv">₹1,850 · 1 visit</span></div>
+    <div class="custrow"><span class="nm">Priya Mehta</span><span class="tagchip">vip</span><span class="tagchip">recurring</span><span class="ltv">₹12,400 · 6 visits</span></div>` },
+  campaigns: { url:"havier.app/admin/campaigns", ey:"Outreach · Broadcast", h2:"Campaigns.", body:`
+    <div class="campcard"><div class="nm">Monsoon Mosquito Push</div>
+      <div class="meta">monsoon_offer_v1 · audience 340 · sent 312 · skipped 28</div></div>` },
+  journeys: { url:"havier.app/admin/journeys", ey:"Automation · Sequences", h2:"Journeys.", body:`
+    <div class="jrncard"><div class="nm">30-Day Check-in</div>
+      <div class="meta">TRIGGER · job completed · 18 enrolled · active</div>
+      <div class="steprow"><span class="stepchip">Job completed</span><span class="steparw">→</span>
+        <span class="stepchip">+30 days</span><span class="steparw">→</span>
+        <span class="stepchip">Send check-in template</span></div></div>` },
+  kpi: { url:"havier.app/admin/kpi", ey:"Performance", h2:"KPI.", body:`
+    <div class="statrow">
+      <div class="stat"><div class="n">₹1.2L</div><div class="l">Revenue</div><div class="d">↑ 18%</div></div>
+      <div class="stat"><div class="n">46</div><div class="l">Bookings</div><div class="d">↑ 9%</div></div>
+      <div class="stat"><div class="n">4.8★</div><div class="l">Avg rating</div></div>
+      <div class="stat"><div class="n">6s</div><div class="l">Median reply</div></div>
+    </div>` },
+  pricing: { url:"havier.app/admin/pricing", ey:"Configuration · Service catalog", h2:"Pricing.", body:`
+    <div class="tbl" style="padding:2px 14px">
+      <div class="pricerow"><span>Cockroaches</span><span class="amt">₹1,620–₹2,070</span></div>
+      <div class="pricerow"><span>Termites</span><span class="amt">Inspection required</span></div>
+      <div class="pricerow"><span>Rats</span><span class="amt">₹1,450–₹1,900</span></div>
+    </div>` },
+  users: { url:"havier.app/admin/users", ey:"Access · Roles", h2:"Team.", body:`
+    <div class="userrow"><span class="nm">Ethan (you)</span><span class="pill g">admin</span></div>
+    <div class="userrow"><span class="nm">Rahul K.</span><span class="pill b">technician</span></div>
+    <div class="userrow"><span class="nm">Sourav D.</span><span class="pill b">technician</span></div>
+    <div class="userrow"><span class="nm">Priya S.</span><span class="pill b">technician</span></div>` }
+};
+
+function showAdminPage(key){
+  const p = ADMIN_PAGES[key];
+  document.querySelectorAll("#bside .nav").forEach(n => n.classList.toggle("on", n.dataset.key === key));
+  document.getElementById("burl").textContent = p.url;
+  document.getElementById("pagebody").innerHTML =
+    `<div class="ey">${p.ey}</div><h2>${p.h2}</h2>${p.body}`;
+}
+function setChapter(n, eyebrow, headHTML, subText){
+  dots.forEach((d,i) => d.classList.toggle("on", i < n));
+  const ch = document.getElementById("chapter");
+  const h = document.getElementById("head");
+  const s = document.getElementById("sub");
+  ch.textContent = eyebrow;
+  h.innerHTML = headHTML; s.textContent = subText;
+  for (const el of [ch,h,s]) { el.classList.remove("fadeS"); void el.offsetWidth; el.classList.add("fadeS"); }
+}
+
+/* ─────────────────────────── the scripted demo ─────────────────────────── */
+async function run(){
+  gen++;                                 // kill any older loop at its next sleep
+  chat.innerHTML = ""; sheet.style.bottom = "-100%"; veil.style.opacity = 0;
+  // newrow/convocard now live inside the Appointments page's template (see
+  // ADMIN_PAGES) and only exist in the DOM after showAdminPage("appointments")
+  // has run at least once — optional-chain the reset so the very first run
+  // (or a replay before the admin scene is ever shown) doesn't throw.
+  document.getElementById("newrow")?.classList.add("hidden");
+  document.getElementById("convocard")?.classList.remove("show");
+  document.getElementById("escbadge").classList.remove("show");
+  document.getElementById("tripbar").classList.remove("show");
+  mins = 10*60 + 12; clockEl.textContent = fmt();
+  scene("wa");
+
+  try {
+    /* CH 1 — booking */
+    setChapter(1, "01 / 05 · Customer books on WhatsApp",
+      "Tap. Tap. <em>Booked.</em>",
+      "No app, no forms — quote to confirmed visit in under a minute, priced from your live rate card.");
+    chip("TODAY");
+    await sleep(900);
+    await customerSays("Hi, I think we have cockroaches at home 😖");
+    const menu = await agentButtons(
+      "Hi! I'm Asha from Havier Pest Control. Tap an option below and I'll sort it out. 👇",
+      ["Book a visit","Manage my booking","Talk to a human"]);
+    await tapButton(menu, 0);
+    const pests = await agentList("What pest are you dealing with?", "Choose pest");
+    await openList(pests, "Choose pest", [
+      { t:"Cockroaches" }, { t:"Lizards" }, { t:"Rats" },
+      { t:"Termites", d:"Free inspection first" }, { t:"Something else" }
+    ], 0);
+    const size = await agentButtons("How big is the property?",
+      ["Small (1BHK)","Medium (2-3BHK)","Large (4BHK+)"], 550);
+    await tapButton(size, 1);
+    await agentSays("For cockroaches (medium property) you're looking at *₹1,620–₹2,070*, incl. our 30-day re-treatment guarantee.", 800);
+    const go = await agentButtons("Want to lock in a visit?",
+      ["See available slots","Not now","Ask the team"], 500);
+    await tapButton(go, 0);
+    const slots = await agentList("Next available slots (90 min each):","Pick a slot", 750);
+    await openList(slots, "Pick a slot", [
+      { t:"Tue 21 Jul 9am-10:30am" }, { t:"Tue 21 Jul 1pm-2:30pm" },
+      { t:"Wed 22 Jul 9am-10:30am" }, { t:"Wed 22 Jul 1pm-2:30pm" },
+      { t:"None of these work" }
+    ], 3);
+    const saved = await agentButtons(
+      "Book under the details we have on file?\n\nEthan\n14B Rustom Baug, Marine Lines",
+      ["Use saved details","Enter new details"], 600);
+    await tapButton(saved, 0);
+    const conf = await agentButtons(
+      "Confirm your booking:\n\n🐜 Cockroaches (₹1,620–₹2,070)\n🗓 Wed 22 Jul 1pm-2:30pm\n👤 Ethan · 📍 Marine Lines",
+      ["Confirm booking","Change slot"], 650);
+    await tapButton(conf, 0);
+    await agentSays("You're booked! ✅\n\nConfirmation code: *R7KM3P*\nWed 22 Jul 1pm-2:30pm\n\nWe'll remind you the day before, and you'll get a live tracking link when the technician heads your way.", 850);
+    await sleep(1500);
+
+    /* CH 2 — admin console: the whole operation, one section at a time */
+    setChapter(2, "02 / 05 · Staff console",
+      "Your whole operation, <em>one console.</em>",
+      "The booking lands here in real time — and everything else your team needs is one click away: escalations, dispatch, AMC, CRM, campaigns, journeys, KPI, pricing, your team.");
+    scene("admin");
+    showAdminPage("overview");
+    await sleep(1100);
+    showAdminPage("escalations");
+    await sleep(1100);
+
+    // Appointments is the story beat — their booking lands here, live.
+    // (Optional-chained: a superseded/replayed run could tear this container
+    // down mid-flight, and a stale timer touching a since-removed node should
+    // no-op rather than throw.)
+    showAdminPage("appointments");
+    await sleep(900);
+    document.getElementById("newrow")?.classList.remove("hidden");
+    await sleep(1400);
+    document.getElementById("convocard")?.classList.add("show");
+    await sleep(1600);
+    document.getElementById("escbadge")?.classList.add("show");
+    await sleep(1300);
+
+    for (const key of ["dispatch","amc","conversations","customers","campaigns","journeys","kpi","pricing","users"]) {
+      showAdminPage(key);
+      await sleep(1000);
+    }
+
+    /* CH 3 — autopilot reminder (day before the visit) */
+    setChapter(3, "03 / 05 · Autopilot",
+      "Then it runs <em>itself.</em>",
+      "Day-before reminders with one-tap confirm — fewer no-shows, zero staff time.");
+    scene("wa");
+    chip("TUE 21 JUL · REMINDER");
+    mins = 10*60 + 3;
+    const rem = await agentButtons(
+      "Hi Ethan, reminder: your visit is *tomorrow, Wed 22 Jul, 1:00 PM*. Code: R7KM3P.",
+      ["Confirm ✓","Reschedule","Cancel"], 550);
+    await tapButton(rem, 0);
+    await agentSays("Confirmed ✅ — see you tomorrow at 1 PM.", 500);
+    await sleep(1200);
+
+    /* CH 4 — technician app + visit day */
+    setChapter(4, "04 / 05 · Technician app",
+      "Techs get their <em>own app.</em>",
+      "Today's jobs, before/after photos, one tap to share a live trip — the customer is notified the moment they head out.");
+    scene("tech");
+    await sleep(1700);
+    const st = document.getElementById("starttrip");
+    rippleAt(st); st.style.background = "#15803d";
+    await sleep(500);
+    document.getElementById("tripbar").classList.add("show");
+    await sleep(1700);
+    scene("wa"); mins = 12*60 + 26;
+    await sleep(600);
+    chip("WED 22 JUL · VISIT DAY");
+    await agentSays("Rahul is on his way to you now 🚐\nTrack him live: *havier.in/track/x7Kf2q*\nETA around 12:50 PM.", 700);
+    await sleep(1500);
+
+    /* CH 5 — feedback & safety */
+    setChapter(5, "05 / 05 · Feedback & safety",
+      "Ratings in. <em>Reviews out.</em>",
+      "Post-visit ratings and Google-review nudges run automatically — and anything sensitive goes straight to a human, instantly.");
+    chip("AFTER THE VISIT");
+    mins = 15*60 + 4;
+    await agentSays("All done! How was your visit today? Reply *1-5* ⭐", 600);
+    await customerSays("5");
+    await agentSays("Thank you! A Google review really helps us: *g.page/havierpest/review*", 550);
+    await sleep(1300);
+    await customerSays("btw my son got a small bite, should we worry??");
+    await agentSays("I've flagged this for our team right away — someone will message you shortly. For any serious reaction, please see a doctor or call 112 first.", 750);
+    await sleep(1900);
+
+    setChapter(5, "Havier Pest Control × PestLLM",
+      "The whole loop, <em>on WhatsApp.</em>",
+      "Customer, staff console, technician app — one live system. Ready for a real tap-through whenever you are.");
+    await sleep(2200);
+  } catch (e) {
+    if (e && e.message === "superseded") return;   // replaced by a newer run
+    throw e;
+  }
+}
+
+window.replay = () => { run(); };
+window.addEventListener("load", () => setTimeout(run, 500));
+</script>
+</body>
+</html>
