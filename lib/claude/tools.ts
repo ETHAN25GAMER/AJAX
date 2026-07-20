@@ -13,6 +13,11 @@ import { requestAmcSubscription } from "@/lib/tools/request_amc_subscription";
 
 export type ToolContext = {
   customerPhone: string;
+  // Media from the current inbound message (base64 data: URLs). Lets tools use
+  // the customer's photo directly instead of the model re-emitting it as an
+  // argument (a data: URL round-tripped through tool-call output is thousands
+  // of output tokens).
+  mediaUrls?: string[];
 };
 
 type Tool = Anthropic.Messages.Tool;
@@ -21,19 +26,14 @@ export const TOOLS: Tool[] = [
   {
     name: "check_availability",
     description:
-      "Return open appointment slots within a date range for the given service type. Always call this before proposing specific slots to the customer.",
+      "Return open appointment slots within a date range. Always call this before proposing specific slots to the customer.",
     input_schema: {
       type: "object",
       properties: {
         start_date: { type: "string", description: "IST calendar date (YYYY-MM-DD) inclusive" },
-        end_date: { type: "string", description: "IST calendar date (YYYY-MM-DD) inclusive" },
-        service_type: {
-          type: "string",
-          enum: ["standard", "plus", "specialist"],
-          description: "Service tier to fit against duration"
-        }
+        end_date: { type: "string", description: "IST calendar date (YYYY-MM-DD) inclusive" }
       },
-      required: ["start_date", "end_date", "service_type"]
+      required: ["start_date", "end_date"]
     }
   },
   {
@@ -46,10 +46,9 @@ export const TOOLS: Tool[] = [
         name: { type: "string" },
         address: { type: "string" },
         pest_type: { type: "string", description: "e.g. 'rats', 'german cockroaches', 'unknown'" },
-        slot_start: { type: "string", description: "Copy the slot_start value character-for-character from the check_availability result. Do not reformat, reconstruct, or modify it." },
-        service_tier: { type: "string", enum: ["standard", "plus", "specialist"] }
+        slot_start: { type: "string", description: "Copy the slot_start value character-for-character from the check_availability result. Do not reformat, reconstruct, or modify it." }
       },
-      required: ["name", "address", "pest_type", "slot_start", "service_tier"]
+      required: ["name", "address", "pest_type", "slot_start"]
     }
   },
   {
@@ -88,21 +87,20 @@ export const TOOLS: Tool[] = [
           type: "string",
           enum: ["small", "medium", "large", "unknown"],
           description: "small ~<1500sqft, medium 1500-3000, large >3000"
-        },
-        service_tier: { type: "string", enum: ["standard", "plus", "specialist"] }
+        }
       },
-      required: ["pest_type", "service_tier"]
+      required: ["pest_type"]
     }
   },
   {
     name: "identify_pest",
     description:
-      "Identify a pest from a description or from an image URL. Provide exactly one of description or image_url.",
+      "Identify a pest from the customer's photo or from a text description. If the customer attached a photo to their latest message it is used automatically — call with use_photo=true and no description. Never paste image data or URLs as arguments.",
     input_schema: {
       type: "object",
       properties: {
-        description: { type: "string" },
-        image_url: { type: "string", description: "URL of a photo attached by the customer (resolved from a WhatsApp media id)" }
+        description: { type: "string", description: "Text description of the pest (omit when using the photo)" },
+        use_photo: { type: "boolean", description: "true = identify from the photo attached to the customer's latest message" }
       }
     }
   },
@@ -182,8 +180,20 @@ export async function dispatchTool(
       return cancelAppointment(input as never);
     case "get_pricing_quote":
       return getPricingQuote(input as never);
-    case "identify_pest":
-      return identifyPest(input as never);
+    case "identify_pest": {
+      // Attach the customer's actual photo from the inbound message. Also
+      // honour a legacy image_url the model may still pass (http(s) only —
+      // data: URLs must come from ctx, never from model output).
+      const raw = input as { description?: string; use_photo?: boolean; image_url?: string };
+      const fromCtx = ctx.mediaUrls?.[0];
+      const image_url =
+        raw.use_photo || (!raw.description && fromCtx)
+          ? fromCtx
+          : typeof raw.image_url === "string" && /^https?:\/\//.test(raw.image_url)
+            ? raw.image_url
+            : undefined;
+      return identifyPest({ description: raw.description, image_url });
+    }
     case "escalate_to_human":
       return escalateToHuman({ ...(input as object), customer_phone: ctx.customerPhone } as never);
     case "lookup_customer":

@@ -9,8 +9,6 @@ export type ActionResult<T = void> =
   | { ok: true; value: T }
   | { ok: false; error: string };
 
-const ServiceTierSchema = z.enum(["standard", "plus", "specialist"]);
-
 const PricingUpdateSchema = z.object({
   base_price: z.coerce.number().min(0).max(100000),
   per_sqft: z.coerce.number().min(0).max(100),
@@ -20,7 +18,6 @@ const PricingUpdateSchema = z.object({
 
 const PricingCreateSchema = z.object({
   pest_type: z.string().min(1).max(60).transform((s) => s.trim().toLowerCase()),
-  service_tier: ServiceTierSchema,
   base_price: z.coerce.number().min(0).max(100000),
   per_sqft: z.coerce.number().min(0).max(100),
   notes: z.string().max(280).nullable(),

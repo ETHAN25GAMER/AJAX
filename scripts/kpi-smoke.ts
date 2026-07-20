@@ -1,11 +1,11 @@
 /**
- * Verify the KPI data layer against the live Supabase, and enable tier 3 so
- * /admin/kpi renders. Run: npx tsx --env-file=.env.local scripts/kpi-smoke.ts
+ * Verify the KPI data layer against the live Supabase.
+ * Run: npx tsx --env-file=.env.local scripts/kpi-smoke.ts
  */
 import { supabase } from "@/lib/supabase/client";
 import {
   rangeForKpi,
-  computeTierAverages,
+  computePriceBaseline,
   computeFinancialKpis,
   computeRevenueTrend,
   computeFunnel,
@@ -16,30 +16,17 @@ import {
 async function main() {
   const db = supabase();
 
-  // 1) deployment_settings present? set tier3 so the page unlocks.
-  const ds = await db.from("deployment_settings").select("id, tier").eq("id", 1).maybeSingle();
-  if (ds.error) {
-    console.log("⚠ deployment_settings not reachable:", ds.error.message,
-      "\n  → migration 0009 likely not applied to this DB; /admin/kpi will show the Upsell screen.");
-  } else if (!ds.data) {
-    await db.from("deployment_settings").insert({ id: 1, tier: "tier3" });
-    console.log("✓ inserted deployment_settings row, tier=tier3");
-  } else {
-    await db.from("deployment_settings").update({ tier: "tier3" }).eq("id", 1);
-    console.log(`✓ deployment_settings tier set to tier3 (was ${ds.data.tier})`);
-  }
-
-  // 2) run every new aggregation for the 30-day window.
+  // Run every aggregation for the 30-day window.
   const range = rangeForKpi("month");
-  const tierAvgs = await computeTierAverages(db as never);
-  console.log("\nTier averages:", tierAvgs);
+  const baseline = await computePriceBaseline(db as never);
+  console.log("\nPrice baseline:", baseline);
 
   const [fin, trend, funnel, areas, techs] = await Promise.all([
-    computeFinancialKpis(db as never, range, tierAvgs),
-    computeRevenueTrend(db as never, tierAvgs),
+    computeFinancialKpis(db as never, range, baseline),
+    computeRevenueTrend(db as never, baseline),
     computeFunnel(db as never, range),
     computeAreaDistribution(db as never, range),
-    computeTechnicianKpis(db as never, range, tierAvgs)
+    computeTechnicianKpis(db as never, range, baseline)
   ]);
 
   console.log("\nFinancial:", { revenue: fin.revenue, completed: fin.completedCount, avgTicket: Math.round(fin.avgTicket) });

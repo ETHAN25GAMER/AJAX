@@ -20,7 +20,7 @@ To collect it all in one pass, send the client **[intake-form.md](intake-form.md
 | What to collect | Why Ajax needs it | Where it lands |
 |---|---|---|
 | Full list of pest types they treat | What the agent can quote/book vs escalate | `pricing` table + [pest-identification.md](../../skills/pest-identification.md) |
-| **Price per pest × service tier** (standard / plus / specialist) | The agent quotes these directly via `get_pricing_quote` | `pricing` table (admin **Pricing** page) |
+| **Price per pest** (flat service — one price per pest, plus a per-sqft factor) | The agent quotes these directly via `get_pricing_quote` | `pricing` table (admin **Pricing** page) |
 | What's included per tier; recurring vs one-off | Accurate quotes and expectations | [pricing-and-quotes.md](../../skills/pricing-and-quotes.md) |
 | Which services need an on-site inspection (no firm quote) | Agent says "inspection required" instead of guessing | `pricing.requires_inspection` |
 | Typical job duration per service | Correct slot length | `DURATION_MIN` in [check_availability.ts](../../lib/tools/check_availability.ts) |

@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { requireRole } from "@/lib/auth/require-role";
-import type { AppointmentStatus, ServiceTier } from "@/lib/supabase/types";
+import type { AppointmentStatus } from "@/lib/supabase/types";
 import { JobDetailClient, type JobDetail, type JobPhoto } from "./job-detail-client";
 
 export const metadata = { title: "Job" };
@@ -12,7 +12,6 @@ type RawAppointment = {
   customer_id: string;
   confirmation_code: string;
   pest_type: string;
-  service_tier: ServiceTier;
   slot_start: string;
   slot_end: string;
   status: AppointmentStatus;
@@ -46,7 +45,7 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
   const { data: rawAppt, error: apptErr } = await sb
     .from("appointments")
     .select(
-      "id, customer_id, confirmation_code, pest_type, service_tier, slot_start, slot_end, status, price_quoted, tech_notes, completed_at, tracking_state, assigned_technician_id, customers(id, name, phone, address)"
+      "id, customer_id, confirmation_code, pest_type, slot_start, slot_end, status, price_quoted, tech_notes, completed_at, tracking_state, assigned_technician_id, customers(id, name, phone, address)"
     )
     .eq("id", id)
     .maybeSingle();
@@ -114,7 +113,6 @@ export default async function JobDetailPage({ params }: { params: Promise<{ id: 
     customer_id: appt.customer_id,
     confirmation_code: appt.confirmation_code,
     pest_type: appt.pest_type,
-    service_tier: appt.service_tier,
     slot_start: appt.slot_start,
     slot_end: appt.slot_end,
     status: appt.status,

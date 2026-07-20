@@ -16,7 +16,7 @@ type Props = {
  * Live "x ago" timestamp that hydrates cleanly.
  *
  * The server and the first client render both emit the deterministic
- * Singapore-time absolute label (`absShort`), so the HTML matches and React
+ * IST absolute label (`absShort`), so the HTML matches and React
  * hydrates without warnings. Only after mount do we swap to the live "x ago"
  * form and refresh it every 30s. `suppressHydrationWarning` is belt-and-braces.
  */

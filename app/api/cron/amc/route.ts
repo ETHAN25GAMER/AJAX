@@ -3,6 +3,7 @@ import { formatInTimeZone } from "date-fns-tz";
 import { supabase } from "@/lib/supabase/client";
 import { sendTemplateToCustomer } from "@/lib/whatsapp/outbound";
 import { TEMPLATES, TEMPLATE_LANG, textBody, firstName } from "@/lib/whatsapp/templates";
+import { requireCronAuth } from "@/lib/cron-auth";
 import { BUSINESS_TZ } from "@/lib/time";
 
 export const runtime = "nodejs";
@@ -34,11 +35,8 @@ type UpsellCandidate = {
 };
 
 export async function GET(req: Request) {
-  const auth = req.headers.get("authorization");
-  const expected = process.env.CRON_SECRET ? `Bearer ${process.env.CRON_SECRET}` : null;
-  if (expected && auth !== expected) {
-    return new NextResponse("Unauthorized", { status: 401 });
-  }
+  const denied = requireCronAuth(req);
+  if (denied) return denied;
 
   const db = supabase();
   const now = new Date();

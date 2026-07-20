@@ -1,7 +1,7 @@
 import { bookingErrorMessage, getOrCreateCustomer, supabase } from "@/lib/supabase/client";
-import { parseBusinessTime } from "@/lib/time";
+import { parseBusinessTime, VISIT_DURATION_MIN } from "@/lib/time";
 import { pickTechnician } from "@/lib/auto-assign";
-import type { ServiceTier } from "@/lib/supabase/types";
+import { createRecordedPaymentLink, depositAmount } from "@/lib/payments/links";
 
 type Args = {
   customer_phone: string;
@@ -9,10 +9,7 @@ type Args = {
   address: string;
   pest_type: string;
   slot_start: string;
-  service_tier: ServiceTier;
 };
-
-const DURATION_MIN: Record<ServiceTier, number> = { standard: 60, plus: 90, specialist: 120 };
 
 export async function createAppointment(args: Args) {
   const db = supabase();
@@ -25,7 +22,7 @@ export async function createAppointment(args: Args) {
     .eq("id", customer.id);
 
   const start = parseBusinessTime(args.slot_start);
-  const end = new Date(start.getTime() + DURATION_MIN[args.service_tier] * 60_000);
+  const end = new Date(start.getTime() + VISIT_DURATION_MIN * 60_000);
   const code = generateCode();
   const assignedTechnicianId = await pickTechnician(start.toISOString(), db);
 
@@ -35,7 +32,6 @@ export async function createAppointment(args: Args) {
       customer_id: customer.id,
       confirmation_code: code,
       pest_type: args.pest_type,
-      service_tier: args.service_tier,
       slot_start: start.toISOString(),
       slot_end: end.toISOString(),
       status: "booked",
@@ -46,12 +42,34 @@ export async function createAppointment(args: Args) {
 
   if (row.error) return { error: bookingErrorMessage(row.error) };
 
+  // Optional booking deposit (cuts no-shows). Null when Razorpay/deposits
+  // aren't configured or the link fails — the booking stands either way.
+  const deposit = depositAmount();
+  const depositLink = deposit
+    ? await createRecordedPaymentLink({
+        customerId: customer.id,
+        customerName: args.name,
+        customerPhone: args.customer_phone,
+        appointmentId: row.data.id,
+        purpose: "deposit",
+        amount: deposit,
+        description: `Booking deposit — ${args.pest_type} (${code})`
+      })
+    : null;
+
   return {
     confirmation_code: code,
     slot_start: row.data.slot_start,
     slot_end: row.data.slot_end,
-    service_tier: row.data.service_tier,
-    address: args.address
+    address: args.address,
+    ...(depositLink
+      ? {
+          deposit_link: depositLink.url,
+          deposit_amount_inr: depositLink.amount,
+          deposit_note:
+            "Share this secure link with the customer to pay the booking deposit. The visit is confirmed either way; the deposit just holds priority."
+        }
+      : {})
   };
 }
 

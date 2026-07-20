@@ -1,13 +1,10 @@
 import { bookingErrorMessage, supabase } from "@/lib/supabase/client";
-import { parseBusinessTime } from "@/lib/time";
-import type { ServiceTier } from "@/lib/supabase/types";
+import { parseBusinessTime, VISIT_DURATION_MIN } from "@/lib/time";
 
 type Args = {
   confirmation_code: string;
   new_slot_start: string;
 };
-
-const DURATION_MIN: Record<ServiceTier, number> = { standard: 60, plus: 90, specialist: 120 };
 
 export async function rescheduleAppointment(args: Args) {
   const db = supabase();
@@ -22,8 +19,7 @@ export async function rescheduleAppointment(args: Args) {
   if (existing.data.status !== "booked") return { error: `Appointment is ${existing.data.status}` };
 
   const start = parseBusinessTime(args.new_slot_start);
-  const tier = existing.data.service_tier as ServiceTier;
-  const end = new Date(start.getTime() + DURATION_MIN[tier] * 60_000);
+  const end = new Date(start.getTime() + VISIT_DURATION_MIN * 60_000);
 
   const updated = await db
     .from("appointments")

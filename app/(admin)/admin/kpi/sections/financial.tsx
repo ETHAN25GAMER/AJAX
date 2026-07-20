@@ -1,9 +1,6 @@
 import { DollarSign, Receipt, TrendingDown, TrendingUp } from "lucide-react";
 import type { FinancialKpis } from "@/lib/kpi/queries";
-import type { ServiceTier } from "@/lib/supabase/types";
 import { StatCard } from "./stat-card";
-
-const TIERS: ServiceTier[] = ["standard", "plus", "specialist"];
 
 export function FinancialSection({ data }: { data: FinancialKpis }) {
   const delta = data.previousRevenue === 0
@@ -41,33 +38,36 @@ export function FinancialSection({ data }: { data: FinancialKpis }) {
 
       <div className="mt-6 border border-border bg-card p-5">
         <p className="font-mono text-[10px] uppercase tracking-[0.14em] text-muted-foreground">
-          Revenue by tier
+          Revenue by pest
         </p>
-        <ul className="mt-4 space-y-3">
-          {TIERS.map((tier) => {
-            const row = data.byTier[tier];
-            const pct = data.revenue === 0 ? 0 : (row.revenue / data.revenue) * 100;
-            return (
-              <li key={tier}>
-                <div className="flex items-baseline justify-between gap-3 text-[13px]">
-                  <span className="capitalize text-foreground">{tier}</span>
-                  <span className="font-mono tabular-nums text-muted-foreground">
-                    {formatMoney(row.revenue)}
-                    <span className="mx-1.5 text-muted-foreground/60">·</span>
-                    {row.count} job{row.count === 1 ? "" : "s"}
-                  </span>
-                </div>
-                <div className="mt-1.5 h-1 w-full bg-border/60">
-                  <div
-                    className="h-full bg-primary"
-                    style={{ width: `${pct}%` }}
-                    aria-hidden
-                  />
-                </div>
-              </li>
-            );
-          })}
-        </ul>
+        {data.byPest.length === 0 ? (
+          <p className="mt-4 text-sm text-muted-foreground">No completed jobs in this range.</p>
+        ) : (
+          <ul className="mt-4 space-y-3">
+            {data.byPest.map((row) => {
+              const pct = data.revenue === 0 ? 0 : (row.revenue / data.revenue) * 100;
+              return (
+                <li key={row.pest}>
+                  <div className="flex items-baseline justify-between gap-3 text-[13px]">
+                    <span className="capitalize text-foreground">{row.pest}</span>
+                    <span className="font-mono tabular-nums text-muted-foreground">
+                      {formatMoney(row.revenue)}
+                      <span className="mx-1.5 text-muted-foreground/60">·</span>
+                      {row.count} job{row.count === 1 ? "" : "s"}
+                    </span>
+                  </div>
+                  <div className="mt-1.5 h-1 w-full bg-border/60">
+                    <div
+                      className="h-full bg-primary"
+                      style={{ width: `${pct}%` }}
+                      aria-hidden
+                    />
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        )}
       </div>
     </section>
   );

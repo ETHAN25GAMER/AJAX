@@ -19,7 +19,6 @@ import { RelativeTime } from "@/components/relative-time";
 import type {
   AppointmentStatus,
   Profile,
-  ServiceTier,
   Urgency
 } from "@/lib/supabase/types";
 
@@ -38,7 +37,6 @@ type AppointmentSummary = {
   id: string;
   confirmation_code: string;
   pest_type: string;
-  service_tier: ServiceTier;
   slot_start: string;
   status: AppointmentStatus;
   assigned_technician_id: string | null;
@@ -72,7 +70,7 @@ export default async function OverviewPage() {
     supabase
       .from("appointments")
       .select(
-        "id, confirmation_code, pest_type, service_tier, slot_start, status, assigned_technician_id, customers(name, phone)"
+        "id, confirmation_code, pest_type, slot_start, status, assigned_technician_id, customers(name, phone)"
       )
       .gte("slot_start", today.toISOString())
       .lt("slot_start", tomorrow.toISOString())
@@ -359,8 +357,6 @@ function TodaySchedule({ appointments }: { appointments: AppointmentSummary[] })
                   </p>
                   <p className="mt-0.5 text-[12px] text-muted-foreground">
                     {a.pest_type}
-                    <span className="mx-1.5 text-muted-foreground/60">·</span>
-                    <span className="capitalize">{a.service_tier}</span>
                     <span className="mx-1.5 text-muted-foreground/60">·</span>
                     <span className="font-mono uppercase tracking-[0.12em]">
                       {a.confirmation_code}

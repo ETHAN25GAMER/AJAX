@@ -23,18 +23,18 @@ import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { dayHeader, dayKey, formatSlotTime } from "@/lib/time";
 import { assignTechnician } from "./actions";
-import type { AppointmentStatus, ServiceTier } from "@/lib/supabase/types";
+import type { AppointmentStatus } from "@/lib/supabase/types";
 
 export type AppointmentWithCustomer = {
   id: string;
   customer_id: string;
   confirmation_code: string;
   pest_type: string;
-  service_tier: ServiceTier;
   slot_start: string;
   slot_end: string;
   status: AppointmentStatus;
   price_quoted: number | null;
+  reminder_confirmed_at: string | null;
   assigned_technician_id: string | null;
   customer: {
     id: string;
@@ -402,13 +402,19 @@ function AppointmentRow({
             <dt className="sr-only">Service</dt>
             <dd>
               {appointment.pest_type}
-              <span className="mx-1.5 text-muted-foreground/60">·</span>
-              <span className="capitalize">{appointment.service_tier}</span>
               {appointment.price_quoted != null && (
                 <>
                   <span className="mx-1.5 text-muted-foreground/60">·</span>
                   <span className="font-mono tabular-nums">
                     ${appointment.price_quoted.toFixed(0)}
+                  </span>
+                </>
+              )}
+              {appointment.reminder_confirmed_at && (
+                <>
+                  <span className="mx-1.5 text-muted-foreground/60">·</span>
+                  <span className="font-mono text-[10px] uppercase tracking-[0.12em] text-primary">
+                    Confirmed ✓
                   </span>
                 </>
               )}

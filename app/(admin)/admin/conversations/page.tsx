@@ -10,6 +10,8 @@ type RawRow = {
   customer_id: string;
   last_message_at: string;
   state_json: unknown;
+  agent_paused: boolean;
+  paused_at: string | null;
   customers: {
     id: string;
     phone: string;
@@ -29,7 +31,9 @@ export default async function ConversationsPage({
 
   const { data, error } = await supabase
     .from("conversations")
-    .select("id, customer_id, last_message_at, state_json, customers(id, phone, name, address)")
+    .select(
+      "id, customer_id, last_message_at, state_json, agent_paused, paused_at, customers(id, phone, name, address)"
+    )
     .order("last_message_at", { ascending: false })
     .limit(500);
 
@@ -53,7 +57,9 @@ export default async function ConversationsPage({
     customer: r.customers,
     last_message_at: r.last_message_at,
     preview: extractPreview(r.state_json),
-    state_json: r.state_json
+    state_json: r.state_json,
+    agent_paused: r.agent_paused,
+    paused_at: r.paused_at
   }));
 
   return <ConversationsClient initial={conversations} initialSelectedId={selectedId ?? null} />;

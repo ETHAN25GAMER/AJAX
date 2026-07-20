@@ -97,8 +97,28 @@ export async function runAgent({ history, userText, mediaUrls, ctx }: AgentInput
     finalText = "Sorry — I'm having trouble on my end. Let me get a human to help.";
   }
 
-  const updatedHistory = trimHistory(messages);
+  const updatedHistory = stripImages(trimHistory(messages));
   return { replyText: finalText, updatedHistory };
+}
+
+// Saved history must not carry base64 image payloads: each one is ~1k+ tokens
+// re-sent to the model on EVERY later turn (times each tool iteration) and
+// bloats the conversations.state_json row to megabytes. The photo has already
+// served its purpose during the run it arrived in; keep a text stub so the
+// model still knows a photo existed.
+function stripImages(messages: MessageParam[]): MessageParam[] {
+  return messages.map((m) => {
+    if (typeof m.content === "string") return m;
+    if (!m.content.some((b) => b.type === "image")) return m;
+    return {
+      ...m,
+      content: m.content.map((b) =>
+        b.type === "image"
+          ? { type: "text" as const, text: "[customer sent a photo — it was analysed at the time but is no longer attached]" }
+          : b
+      )
+    };
+  });
 }
 
 function trimHistory(messages: MessageParam[]): MessageParam[] {

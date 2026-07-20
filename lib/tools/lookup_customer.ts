@@ -14,7 +14,7 @@ export async function lookupCustomer(args: Args) {
 
   const appts = await db
     .from("appointments")
-    .select("confirmation_code, pest_type, service_tier, slot_start, status")
+    .select("confirmation_code, pest_type, slot_start, status")
     .eq("customer_id", customer.data.id)
     .order("slot_start", { ascending: false })
     .limit(5);

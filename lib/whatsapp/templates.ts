@@ -15,8 +15,14 @@ export const TEMPLATE_LANG = process.env.WHATSAPP_TEMPLATE_LANG ?? "en";
 export const TEMPLATES = {
   /** Day-before reminder. Body: 1=first name, 2=date & time, 3=confirmation code. */
   reminder: process.env.WHATSAPP_TEMPLATE_REMINDER ?? "appointment_reminder_v1",
-  /** Re-engagement check-in. Body: 1=first name. */
-  nudge: process.env.WHATSAPP_TEMPLATE_NUDGE ?? "checkin_nudge_v1",
+  /**
+   * Day-before reminder with quick-reply buttons [Confirm] [Reschedule]
+   * [Cancel]. Body params as `reminder`; the three button payloads are set at
+   * send time (rem:confirm:<id> / rem:resched:<id> / rem:cancel:<id>) and a
+   * tap OPENS the 24h service window, enabling the follow-up slot list.
+   * Unset/unapproved → the reminders cron falls back to the text `reminder`.
+   */
+  reminderButtons: process.env.WHATSAPP_TEMPLATE_REMINDER_BUTTONS ?? "",
   /** Tech en-route. Body: 1=first name, 2=technician name. URL button: dynamic suffix = tracking token. */
   enRoute: process.env.WHATSAPP_TEMPLATE_EN_ROUTE ?? "technician_en_route_v1",
   /** Internal alert to the escalation phone. Body: 1=urgency, 2=customer phone, 3=summary. */
@@ -38,6 +44,26 @@ export function firstName(name: string | null | undefined): string {
 // Build a single body component from positional text params ({{1}}, {{2}}, …).
 export function textBody(...params: string[]): TemplateComponent[] {
   return [{ type: "body", parameters: params.map((text) => ({ type: "text", text })) }];
+}
+
+// Body params plus quick-reply button payloads (one per button, in order).
+// Each payload comes back verbatim as message.type "button" when tapped — the
+// flow engine routes on it (e.g. "rem:confirm:<appointment id>").
+export function bodyWithQuickReplies(
+  bodyParams: string[],
+  payloads: string[]
+): TemplateComponent[] {
+  return [
+    { type: "body", parameters: bodyParams.map((text) => ({ type: "text", text })) },
+    ...payloads.map(
+      (payload, i): TemplateComponent => ({
+        type: "button",
+        sub_type: "quick_reply",
+        index: String(i),
+        parameters: [{ type: "payload", payload }]
+      })
+    )
+  ];
 }
 
 // Body params plus a dynamic URL button. The template's button must be a

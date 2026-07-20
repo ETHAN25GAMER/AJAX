@@ -31,3 +31,23 @@ These templates are created once per client, in **their** WhatsApp Business acco
   - The code fills that `{{1}}` with the tracking **token only** — so the base URL lives in the template, the token comes from the send. Get the base wrong and every tracking link 404s.
 - **Languages:** if the client needs Mandarin/Malay/Tamil, submit a localized version of each template under the *same name* with the extra language, and the API will pick it by `WHATSAPP_TEMPLATE_LANG` (or we localize per customer later).
 - Keep the wording close to the suggestions — wildly promotional Utility templates get downgraded to Marketing or rejected by Meta.
+
+## appointment_reminder_buttons_v1 (MCQ reminder — preferred)
+
+Same purpose as `appointment_reminder_v1`, but with **quick-reply buttons** so
+the customer can act with one tap. Configure the name via
+`WHATSAPP_TEMPLATE_REMINDER_BUTTONS`; until it's set/approved the reminders
+cron falls back to the plain text template automatically.
+
+- **Category:** Utility
+- **Body:** `Hi {{1}}, a reminder about your pest-control visit on {{2}}. Your confirmation code is {{3}}. Will you be available?`
+  - `{{1}}` first name · `{{2}}` date & time · `{{3}}` confirmation code
+- **Buttons (quick reply, in this order):**
+  1. `Confirm ✓`
+  2. `Reschedule`
+  3. `Cancel`
+- The button **payloads are set at send time** by the app
+  (`rem:confirm:<id>` / `rem:resched:<id>` / `rem:cancel:<id>`) — nothing to
+  configure in Meta beyond the three quick-reply buttons themselves.
+- A tap opens the 24-hour service window, which lets the app follow up
+  immediately with the interactive slot list for rescheduling.

@@ -1,6 +1,6 @@
 """
 PestLLM (SEN) — Personalised Lead Reel
-Style: exact match to the 76-video Singapore format
+Style: exact match to the original lead-reel format
 Target: Herbal Pest Control (India)
 Format: 1280x720, 60fps, landscape
 """

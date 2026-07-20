@@ -12,9 +12,8 @@ export default async function PricingPage() {
 
   const { data, error } = await supabase
     .from("pricing")
-    .select("id, pest_type, service_tier, base_price, per_sqft, notes, requires_inspection")
-    .order("pest_type", { ascending: true })
-    .order("service_tier", { ascending: true });
+    .select("id, pest_type, base_price, per_sqft, notes, requires_inspection")
+    .order("pest_type", { ascending: true });
 
   if (error) {
     return (

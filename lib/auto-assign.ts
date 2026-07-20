@@ -1,7 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { dayKey, parseBusinessTime } from "@/lib/time";
 
-// Pick the technician with the lightest load on the same Singapore calendar day
+// Pick the technician with the lightest load on the same IST calendar day
 // as `slotStartIso`. Random tie-break. Returns null when no technicians exist
 // (preserves the original "insert as NULL, admin picks" behavior).
 //

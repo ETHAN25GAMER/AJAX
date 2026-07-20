@@ -2,7 +2,7 @@
  * Strips all client data from the database — run before onboarding a new client.
  * Deletes: pricing, customers (cascades to conversations/appointments/amc/escalations),
  *          technician_positions, appointment_tracking_tokens.
- * Does NOT touch: profiles, deployment_settings, auth.users.
+ * Does NOT touch: profiles, auth.users.
  *
  * Run: npx tsx --env-file=.env.local scripts/db-reset.ts
  */

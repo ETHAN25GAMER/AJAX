@@ -1,21 +1,22 @@
 import Link from "next/link";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { requireRole } from "@/lib/auth/require-role";
-import { getDeploymentTier } from "@/lib/tier";
 import { cn } from "@/lib/utils";
 import {
   computeAmcKpis,
   computeAreaDistribution,
+  computeFeedbackKpis,
   computeFinancialKpis,
   computeFunnel,
+  computeLeadSources,
   computeOperationalKpis,
+  computeSlaKpis,
   computeRevenueTrend,
   computeTechnicianKpis,
-  computeTierAverages,
+  computePriceBaseline,
   rangeForKpi,
   type KpiRange
 } from "@/lib/kpi/queries";
-import { Upsell } from "./upsell";
 import { FinancialSection } from "./sections/financial";
 import { RevenueTrendSection } from "./sections/revenue-trend";
 import { FunnelSection } from "./sections/funnel";
@@ -24,6 +25,9 @@ import { AmcSection } from "./sections/amc";
 import { TechniciansSection } from "./sections/technicians";
 import { TechRevenueSection } from "./sections/tech-revenue";
 import { OperationalSection } from "./sections/operational";
+import { FeedbackSection } from "./sections/feedback";
+import { LeadSourcesSection } from "./sections/lead-sources";
+import { SlaSection } from "./sections/sla";
 
 export const metadata = { title: "KPI — PestLLM" };
 export const dynamic = "force-dynamic";
@@ -40,25 +44,36 @@ export default async function KpiPage({
   searchParams: Promise<{ range?: string }>;
 }) {
   await requireRole("admin");
-  const tier = await getDeploymentTier();
-  if (tier !== "tier3") return <Upsell />;
 
   const params = await searchParams;
   const range = (RANGES.find((r) => r.id === params.range)?.id ?? "month") as KpiRange;
   const dateRange = rangeForKpi(range);
 
   const sb = await createSupabaseServerClient();
-  const tierAvgs = await computeTierAverages(sb);
-  const [financial, revenueTrend, funnel, areas, amc, technicians, operational] =
-    await Promise.all([
-      computeFinancialKpis(sb, dateRange, tierAvgs),
-      computeRevenueTrend(sb, tierAvgs),
-      computeFunnel(sb, dateRange),
-      computeAreaDistribution(sb, dateRange),
-      computeAmcKpis(sb, dateRange),
-      computeTechnicianKpis(sb, dateRange, tierAvgs),
-      computeOperationalKpis(sb, dateRange)
-    ]);
+  const baseline = await computePriceBaseline(sb);
+  const [
+    financial,
+    revenueTrend,
+    funnel,
+    areas,
+    amc,
+    technicians,
+    operational,
+    feedback,
+    leadSources,
+    sla
+  ] = await Promise.all([
+    computeFinancialKpis(sb, dateRange, baseline),
+    computeRevenueTrend(sb, baseline),
+    computeFunnel(sb, dateRange),
+    computeAreaDistribution(sb, dateRange),
+    computeAmcKpis(sb, dateRange),
+    computeTechnicianKpis(sb, dateRange, baseline),
+    computeOperationalKpis(sb, dateRange),
+    computeFeedbackKpis(sb, dateRange),
+    computeLeadSources(sb, dateRange),
+    computeSlaKpis(sb, dateRange)
+  ]);
 
   return (
     <div className="surface-paper min-h-dvh">
@@ -66,7 +81,7 @@ export default async function KpiPage({
         <header className="flex items-end justify-between gap-6">
           <div>
             <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-muted-foreground">
-              Tier 3 · Performance
+              Performance
             </p>
             <h1 className="mt-3 font-serif text-[44px] leading-[1.02] tracking-tight text-ink md:text-[56px]">
               KPI.
@@ -109,11 +124,14 @@ export default async function KpiPage({
           <div className="grid gap-8 lg:grid-cols-2">
             <FunnelSection stages={funnel} />
             <AreasSection areas={areas} />
+            <LeadSourcesSection sources={leadSources} />
           </div>
           <TechniciansSection rows={technicians} />
           <TechRevenueSection rows={technicians} />
           <AmcSection data={amc} />
           <OperationalSection data={operational} />
+          <SlaSection data={sla} />
+          <FeedbackSection data={feedback} />
         </div>
       </div>
     </div>

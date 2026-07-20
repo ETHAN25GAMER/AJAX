@@ -5,7 +5,11 @@ import { revalidatePath } from "next/cache";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { supabase as serviceClient } from "@/lib/supabase/client";
 import { requireRole } from "@/lib/auth/require-role";
-import { sendTemplateToCustomer } from "@/lib/whatsapp/outbound";
+import {
+  sendFlowToCustomer,
+  sendTemplateToCustomer,
+  sendWhatsAppToCustomer
+} from "@/lib/whatsapp/outbound";
 import { TEMPLATES, TEMPLATE_LANG, bodyWithUrlButton, firstName } from "@/lib/whatsapp/templates";
 import type { AppointmentStatus, Urgency } from "@/lib/supabase/types";
 
@@ -54,9 +58,69 @@ export async function setStatus(
     await cleanupTrip(sb, appointmentId, session.userId);
   }
 
+  // The RLS-scoped update above succeeding proves this tech owns the job, so
+  // the system-side CSAT ask can safely run under the service role (same
+  // pattern as createEscalation). Never fail the completion over it.
+  if (status === "completed") {
+    await requestCsat(appointmentId).catch((e) =>
+      console.error("[csat] request failed", appointmentId, e)
+    );
+  }
+
   revalidatePath(`/tech/jobs/${appointmentId}`);
   revalidatePath("/tech");
   return { ok: true, data: { completed_at } };
+}
+
+// Ask the customer to rate the visit: a WhatsApp Flow when one is published
+// (WHATSAPP_FLOW_CSAT_ID), else a plain reply-1-to-5 message. Transactional —
+// it's about the service they just received, not marketing. Marked via
+// csat_requested_at so it's asked exactly once and bare-number replies can be
+// attributed (lib/feedback.ts). Free-form sends need Meta's 24h window; when
+// it's closed the send fails and we simply don't mark — no rating ask, no lie.
+async function requestCsat(appointmentId: string) {
+  const admin = serviceClient();
+
+  const { data: appt } = await admin
+    .from("appointments")
+    .select("id, csat_requested_at, customers(name, phone, opted_out)")
+    .eq("id", appointmentId)
+    .maybeSingle();
+  if (!appt || appt.csat_requested_at) return;
+
+  // Embedded relations are typed as arrays even on a one-to-one FK.
+  const customer = (appt.customers as unknown) as
+    | { name: string | null; phone: string | null; opted_out: boolean | null }
+    | null;
+  if (!customer?.phone) return;
+
+  const forSend = { phone: customer.phone, opted_out: customer.opted_out };
+  const flowId = process.env.WHATSAPP_FLOW_CSAT_ID;
+
+  const gate = flowId
+    ? await sendFlowToCustomer(
+        forSend,
+        {
+          flowId,
+          bodyText: `Thanks ${firstName(customer.name)} — your visit is complete. How did we do?`,
+          ctaText: "Rate your visit",
+          flowToken: `csat:${appointmentId}`
+        },
+        { kind: "transactional" }
+      )
+    : await sendWhatsAppToCustomer(
+        forSend,
+        `Thanks ${firstName(customer.name)} — your visit is complete. ` +
+          `How did we do? Reply with a rating from 1 to 5.`,
+        { kind: "transactional" }
+      );
+
+  if (gate.ok) {
+    await admin
+      .from("appointments")
+      .update({ csat_requested_at: new Date().toISOString() })
+      .eq("id", appointmentId);
+  }
 }
 
 export type RecordedPhoto = {

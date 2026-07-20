@@ -1,4 +1,5 @@
 import { getOrCreateCustomer, supabase } from "@/lib/supabase/client";
+import { createRecordedPaymentLink } from "@/lib/payments/links";
 
 type Args = {
   customer_phone: string;
@@ -46,8 +47,32 @@ export async function requestAmcRenewal(args: Args) {
     .update({ status: "pending_renewal" })
     .eq("customer_id", customer.id);
 
+  // When the contract has a price and Razorpay is configured, hand the agent a
+  // payment link so the customer can pay right in the thread — admin still
+  // finalizes the renewal (the paid webhook files a follow-up escalation).
+  const price = amc.data.annual_price;
+  const paymentLink =
+    price && price > 0
+      ? await createRecordedPaymentLink({
+          customerId: customer.id,
+          customerName: customer.name,
+          customerPhone: args.customer_phone,
+          purpose: "amc_renewal",
+          amount: price,
+          description: `AMC renewal — ${amc.data.pest_type}`
+        })
+      : null;
+
   return {
     escalation_id: row.data.id,
-    response_window: "within 1 business day"
+    response_window: "within 1 business day",
+    ...(paymentLink
+      ? {
+          payment_link: paymentLink.url,
+          payment_amount_inr: paymentLink.amount,
+          payment_note:
+            "Share this secure link so the customer can pay the renewal now. Our team still confirms the renewal after payment."
+        }
+      : {})
   };
 }

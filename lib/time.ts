@@ -8,6 +8,12 @@ import { formatInTimeZone, fromZonedTime } from "date-fns-tz";
 // instant. Pinning to a fixed zone makes the output identical everywhere.
 export const BUSINESS_TZ = "Asia/Kolkata";
 
+// Flat-service visit length (service tiers were removed in migration 0020).
+// 90 minutes fits every 2-hour work window and covers typical jobs; shared by
+// check_availability, create_appointment, and reschedule_appointment so slot
+// math can never disagree between them.
+export const VISIT_DURATION_MIN = 90;
+
 // Slot time in 24-hour HH:mm, always in IST.
 export function formatSlotTime(iso: string): string {
   return formatInTimeZone(new Date(iso), BUSINESS_TZ, "HH:mm");

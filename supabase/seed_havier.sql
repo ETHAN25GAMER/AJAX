@@ -19,49 +19,26 @@ truncate table conversations        cascade;
 truncate table customers            cascade;
 truncate table pricing              cascade;
 
--- Reset deployment tier to tier2 (default)
-update deployment_settings set tier = 'tier2' where id = 1;
-
 -- -------------------------------------------------------------
--- STEP 2: Pricing (INR, inclusive of 18% GST)
+-- STEP 2: Pricing (INR, inclusive of 18% GST) — flat service:
+-- one row per pest (service tiers removed in migration 0020).
 -- Property size reference used by the tool:
 --   Small   ≈  650 sqft (1BHK)
 --   Medium  ≈ 1100 sqft (2–3BHK)
 --   Large   ≈ 2000 sqft (4BHK / commercial)
 -- -------------------------------------------------------------
-insert into pricing (pest_type, service_tier, base_price, per_sqft, notes, requires_inspection)
+insert into pricing (pest_type, base_price, per_sqft, notes, requires_inspection)
 values
-  -- Cockroaches
-  ('cockroaches', 'standard',  1800.00, 0.50,
+  ('cockroaches', 1800.00, 0.50,
    'Gel bait + residual spray, 1 visit, 30-day free re-treatment guarantee', false),
-  ('cockroaches', 'plus',      2400.00, 0.80,
-   'Monthly treatment plan, scheduled visits year-round, free callbacks', false),
-  ('cockroaches', 'specialist',4500.00, 1.50,
-   'Severe infestation — multi-product protocol, flush-out + IGR, 30-day guarantee', false),
-
-  -- Rats
-  ('rats',        'standard',  2200.00, 0.80,
+  ('rats',        2200.00, 0.80,
    'Rodent bait stations + entry-point sealing, 30-day guarantee', false),
-  ('rats',        'plus',      3600.00, 1.20,
-   'Monthly monitoring visits + follow-up, 12 visits/year', false),
-  ('rats',        'specialist',   0.00, 0.00,
-   'Structural infestation with gnaw damage — on-site inspection required', true),
-
-  -- Lizards
-  ('lizards',     'standard',  1000.00, 0.25,
+  ('lizards',     1000.00, 0.25,
    'Repellent spray + adhesive gel barriers, 30-day guarantee', false),
-  ('lizards',     'plus',      1800.00, 0.40,
-   'Quarterly treatment, 4 visits/year, free callbacks', false),
+  ('termites',       0.00, 0.00,
+   'On-site inspection required before quote', true)
 
-  -- Termites (always inspection-required)
-  ('termites',    'standard',     0.00, 0.00,
-   'On-site inspection required before quote', true),
-  ('termites',    'plus',         0.00, 0.00,
-   'On-site inspection required before quote', true),
-  ('termites',    'specialist',   0.00, 0.00,
-   'Soil injection / borer treatment — on-site inspection required', true)
-
-on conflict (pest_type, service_tier) do update
+on conflict (pest_type) do update
   set base_price          = excluded.base_price,
       per_sqft            = excluded.per_sqft,
       notes               = excluded.notes,

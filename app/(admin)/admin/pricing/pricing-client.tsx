@@ -4,28 +4,18 @@ import { useCallback, useMemo, useState, useTransition } from "react";
 import { Check, Loader2, Plus, ShieldAlert, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { createPricing, deletePricing, updatePricing } from "./actions";
-import type { PricingRow, ServiceTier } from "@/lib/supabase/types";
+import type { PricingRow } from "@/lib/supabase/types";
 
 type DraftRule = {
   pest_type: string;
-  service_tier: ServiceTier;
   base_price: string;
   per_sqft: string;
   notes: string;
   requires_inspection: boolean;
 };
 
-const TIER_ORDER: Record<ServiceTier, number> = { standard: 0, plus: 1, specialist: 2 };
-
-const TIER_LABELS: Record<ServiceTier, string> = {
-  standard: "Standard",
-  plus: "Plus",
-  specialist: "Specialist"
-};
-
 const EMPTY_DRAFT: DraftRule = {
   pest_type: "",
-  service_tier: "standard",
   base_price: "0",
   per_sqft: "0",
   notes: "",
@@ -53,11 +43,7 @@ export function PricingClient({ initial }: { initial: PricingRow[] }) {
   return (
     <div className="surface-paper min-h-dvh">
       <div className="mx-auto max-w-4xl px-5 py-10 md:px-10 md:py-14">
-        <Header
-          ruleCount={rows.length}
-          pestCount={groups.length}
-          tierCount={new Set(rows.map((r) => r.service_tier)).size}
-        />
+        <Header ruleCount={rows.length} pestCount={groups.length} />
 
         <div className="mt-10 space-y-10">
           {groups.map((g, gi) => (
@@ -97,15 +83,7 @@ export function PricingClient({ initial }: { initial: PricingRow[] }) {
   );
 }
 
-function Header({
-  ruleCount,
-  pestCount,
-  tierCount
-}: {
-  ruleCount: number;
-  pestCount: number;
-  tierCount: number;
-}) {
+function Header({ ruleCount, pestCount }: { ruleCount: number; pestCount: number }) {
   return (
     <header>
       <div className="flex items-baseline justify-between gap-4">
@@ -119,7 +97,7 @@ function Header({
       <p className="mt-3 text-base text-muted-foreground">
         {ruleCount === 0
           ? "No pricing rules yet."
-          : `${ruleCount} rule${ruleCount === 1 ? "" : "s"} · ${pestCount} pest type${pestCount === 1 ? "" : "s"} · ${tierCount} tier${tierCount === 1 ? "" : "s"}.`}
+          : `${ruleCount} rule${ruleCount === 1 ? "" : "s"} · ${pestCount} pest type${pestCount === 1 ? "" : "s"} · one flat price per pest.`}
       </p>
     </header>
   );
@@ -226,28 +204,9 @@ function PricingRowEditor({
 
   return (
     <li
-      className="animate-card-in grid gap-3 px-4 py-4 md:grid-cols-[120px_1fr_auto] md:items-start md:gap-6 md:px-6"
+      className="animate-card-in grid gap-3 px-4 py-4 md:grid-cols-[1fr_auto] md:items-start md:gap-6 md:px-6"
       style={{ animationDelay: `${index * 40}ms` }}
     >
-      <div>
-        <span
-          className={cn(
-            "inline-flex items-center gap-1.5 font-mono text-[10px] font-medium uppercase tracking-[0.14em] leading-none",
-            initial.service_tier === "specialist" ? "text-urgency-normal" : "text-foreground/70"
-          )}
-        >
-          <span
-            className={cn(
-              "h-1.5 w-1.5 rounded-full",
-              initial.service_tier === "standard" && "bg-foreground/40",
-              initial.service_tier === "plus" && "bg-primary",
-              initial.service_tier === "specialist" && "bg-urgency-normal"
-            )}
-          />
-          {TIER_LABELS[initial.service_tier]}
-        </span>
-      </div>
-
       <div className="space-y-3">
         <div className="grid grid-cols-2 gap-3 md:grid-cols-[1fr_1fr_auto]">
           <PriceField
@@ -374,7 +333,6 @@ function AddRuleForm({
     startTransition(async () => {
       const result = await createPricing({
         pest_type: draft.pest_type,
-        service_tier: draft.service_tier,
         base_price: draft.base_price,
         per_sqft: draft.per_sqft,
         notes: draft.notes.trim() === "" ? null : draft.notes.trim(),
@@ -387,7 +345,6 @@ function AddRuleForm({
       onCreated({
         id: result.value.id,
         pest_type: draft.pest_type.trim().toLowerCase(),
-        service_tier: draft.service_tier,
         base_price: Number(draft.base_price),
         per_sqft: Number(draft.per_sqft),
         notes: draft.notes.trim() === "" ? null : draft.notes.trim(),
@@ -412,19 +369,6 @@ function AddRuleForm({
             onChange={(e) => setDraft({ ...draft, pest_type: e.target.value })}
             className="w-full border border-border bg-background px-3 py-2 text-[13px] text-foreground focus:border-primary focus:outline-none"
           />
-        </FieldShell>
-        <FieldShell label="Service tier">
-          <select
-            value={draft.service_tier}
-            onChange={(e) =>
-              setDraft({ ...draft, service_tier: e.target.value as ServiceTier })
-            }
-            className="w-full border border-border bg-background px-3 py-2 text-[13px] text-foreground focus:border-primary focus:outline-none"
-          >
-            <option value="standard">Standard</option>
-            <option value="plus">Plus</option>
-            <option value="specialist">Specialist</option>
-          </select>
         </FieldShell>
         <FieldShell label="Base price">
           <div className="flex items-center border border-border bg-background pl-3 focus-within:border-primary">
@@ -570,17 +514,10 @@ function groupByPest(rows: PricingRow[]): Array<{ pest_type: string; rules: Pric
     map.get(r.pest_type)!.push(r);
   }
   return Array.from(map.entries())
-    .map(([pest_type, rules]) => ({
-      pest_type,
-      rules: [...rules].sort((a, b) => TIER_ORDER[a.service_tier] - TIER_ORDER[b.service_tier])
-    }))
+    .map(([pest_type, rules]) => ({ pest_type, rules }))
     .sort((a, b) => a.pest_type.localeCompare(b.pest_type));
 }
 
 function sortRows(rows: PricingRow[]): PricingRow[] {
-  return [...rows].sort((a, b) => {
-    const p = a.pest_type.localeCompare(b.pest_type);
-    if (p !== 0) return p;
-    return TIER_ORDER[a.service_tier] - TIER_ORDER[b.service_tier];
-  });
+  return [...rows].sort((a, b) => a.pest_type.localeCompare(b.pest_type));
 }

@@ -1,7 +1,7 @@
 import { addDays, startOfDay } from "date-fns";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { requireRole } from "@/lib/auth/require-role";
-import type { AppointmentStatus, ServiceTier } from "@/lib/supabase/types";
+import type { AppointmentStatus } from "@/lib/supabase/types";
 import { TodayClient, type AssignedAppointment } from "./today-client";
 
 export const metadata = { title: "Today" };
@@ -12,7 +12,6 @@ type RawAppointment = {
   customer_id: string;
   confirmation_code: string;
   pest_type: string;
-  service_tier: ServiceTier;
   slot_start: string;
   slot_end: string;
   status: AppointmentStatus;
@@ -36,7 +35,7 @@ export default async function TechHomePage() {
   const { data, error } = await supabase
     .from("appointments")
     .select(
-      "id, customer_id, confirmation_code, pest_type, service_tier, slot_start, slot_end, status, assigned_technician_id, completed_at, customers(id, name, address)"
+      "id, customer_id, confirmation_code, pest_type, slot_start, slot_end, status, assigned_technician_id, completed_at, customers(id, name, address)"
     )
     .eq("assigned_technician_id", session.userId)
     .gte("slot_start", windowStart.toISOString())
@@ -53,7 +52,6 @@ export default async function TechHomePage() {
     customer_id: r.customer_id,
     confirmation_code: r.confirmation_code,
     pest_type: r.pest_type,
-    service_tier: r.service_tier,
     slot_start: r.slot_start,
     slot_end: r.slot_end,
     status: r.status,

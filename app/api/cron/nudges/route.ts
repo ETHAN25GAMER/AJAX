@@ -1,8 +1,13 @@
 import { NextResponse } from "next/server";
 import type Anthropic from "@anthropic-ai/sdk";
 import { supabase } from "@/lib/supabase/client";
-import { sendTemplateToCustomer } from "@/lib/whatsapp/outbound";
-import { TEMPLATES, TEMPLATE_LANG, textBody, firstName } from "@/lib/whatsapp/templates";
+import { sendWhatsAppToCustomer } from "@/lib/whatsapp/outbound";
+import { detectAbandonedBooking, detectAbandonedFlowBooking } from "@/lib/recovery";
+import { flowEngine } from "@/lib/flows/definitions";
+import { parseFlowState } from "@/lib/flows/engine";
+import { deliverSends } from "@/lib/flows/deliver";
+import { assistantTurnsFor } from "@/lib/flows/transcript";
+import { requireCronAuth } from "@/lib/cron-auth";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -20,16 +25,16 @@ const NUDGE_TEXT =
 
 type ConversationRow = {
   id: string;
+  customer_id: string;
   state_json: unknown;
+  flow_state: unknown;
+  agent_paused: boolean;
   customers: { phone: string | null; opted_out: boolean | null; name: string | null } | null;
 };
 
 export async function GET(req: Request) {
-  const auth = req.headers.get("authorization");
-  const expected = process.env.CRON_SECRET ? `Bearer ${process.env.CRON_SECRET}` : null;
-  if (expected && auth !== expected) {
-    return new NextResponse("Unauthorized", { status: 401 });
-  }
+  const denied = requireCronAuth(req);
+  if (denied) return denied;
 
   const db = supabase();
   const now = new Date();
@@ -38,7 +43,7 @@ export async function GET(req: Request) {
 
   const candidates = await db
     .from("conversations")
-    .select("id, state_json, customers(phone, opted_out, name)")
+    .select("id, customer_id, state_json, flow_state, agent_paused, customers(phone, opted_out, name)")
     .lt("last_message_at", idleSince.toISOString())
     .gt("last_message_at", oldestEligible.toISOString())
     .is("nudged_at", null)
@@ -55,7 +60,8 @@ export async function GET(req: Request) {
   // conversations.customer_id guarantees a single customer per row at runtime.
   for (const row of (candidates.data ?? []) as unknown as ConversationRow[]) {
     const customer = row.customers;
-    if (!customer?.phone) {
+    // Human-held threads (agent_paused) belong to staff — no automated outreach.
+    if (!customer?.phone || row.agent_paused) {
       skipped++;
       continue;
     }
@@ -68,14 +74,22 @@ export async function GET(req: Request) {
       continue;
     }
 
-    const gate = await sendTemplateToCustomer(
+    // Booking-intent threads (either signal era) are owned by the
+    // abandoned-booking recovery cron — never double-message.
+    if (detectAbandonedFlowBooking(row.flow_state) ?? detectAbandonedBooking(history)) {
+      skipped++;
+      continue;
+    }
+
+    // Eligibility is capped at IDLE_MAX_HOURS (23h), so every nudge is inside
+    // Meta's 24h service window by construction — a free-form service message
+    // works and costs nothing, unlike a paid marketing template.
+    const gate = await sendWhatsAppToCustomer(
       { phone: customer.phone, opted_out: customer.opted_out },
-      TEMPLATES.nudge,
-      TEMPLATE_LANG,
-      textBody(firstName(customer.name)),
+      NUDGE_TEXT,
       { kind: "promotional" }
     ).catch((err) => {
-      console.error("[nudges] whatsapp send failed", customer.phone, err);
+      console.error("[nudges] whatsapp send failed", err);
       return { ok: false as const, reason: "no_phone" as const };
     });
 
@@ -84,9 +98,27 @@ export async function GET(req: Request) {
       continue;
     }
 
+    // MCQ era: when the customer is parked mid-flow (menu, manage, …),
+    // re-present the exact question after the nudge so one tap resumes.
+    const flowState = parseFlowState(row.flow_state);
+    let mcqTurns: Anthropic.Messages.MessageParam[] = [];
+    if (flowState && customer.phone) {
+      try {
+        const represented = await flowEngine().represent(
+          { customerPhone: customer.phone, customerId: row.customer_id },
+          flowState
+        );
+        await deliverSends(customer.phone, represented.sends);
+        mcqTurns = assistantTurnsFor(represented.sends);
+      } catch (err) {
+        console.error("[nudges] MCQ re-present failed", err);
+      }
+    }
+
     const updatedHistory: Anthropic.Messages.MessageParam[] = [
       ...history,
-      { role: "assistant", content: [{ type: "text", text: NUDGE_TEXT }] }
+      { role: "assistant", content: [{ type: "text", text: NUDGE_TEXT }] },
+      ...mcqTurns
     ];
 
     const upd = await db

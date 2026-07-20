@@ -1,10 +1,8 @@
 import { supabase } from "@/lib/supabase/client";
-import type { ServiceTier } from "@/lib/supabase/types";
 
 type Args = {
   pest_type: string;
   property_size?: "small" | "medium" | "large" | "unknown";
-  service_tier: ServiceTier;
 };
 
 const SIZE_SQFT = { small: 1000, medium: 2200, large: 4000, unknown: 2000 } as const;
@@ -16,7 +14,6 @@ export async function getPricingQuote(args: Args) {
     .from("pricing")
     .select("*")
     .ilike("pest_type", normalized)
-    .eq("service_tier", args.service_tier)
     .maybeSingle();
 
   if (row.error) return { error: row.error.message };
@@ -24,7 +21,7 @@ export async function getPricingQuote(args: Args) {
     return {
       firm: false,
       requires_inspection: true,
-      message: `We don't have a stored price for ${args.pest_type} at the ${args.service_tier} tier. A technician will quote on-site.`
+      message: `We don't have a stored price for ${args.pest_type}. A technician will quote on-site.`
     };
   }
 
@@ -32,7 +29,6 @@ export async function getPricingQuote(args: Args) {
     return {
       firm: false,
       requires_inspection: true,
-      tier: args.service_tier,
       pest_type: row.data.pest_type,
       notes: row.data.notes
     };
@@ -46,7 +42,6 @@ export async function getPricingQuote(args: Args) {
   return {
     firm: false,
     requires_inspection: false,
-    tier: args.service_tier,
     pest_type: row.data.pest_type,
     price_low: low,
     price_high: high,

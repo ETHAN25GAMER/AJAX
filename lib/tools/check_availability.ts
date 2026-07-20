@@ -1,18 +1,10 @@
 import { fromZonedTime, formatInTimeZone } from "date-fns-tz";
 import { supabase } from "@/lib/supabase/client";
-import { BUSINESS_TZ } from "@/lib/time";
-import type { ServiceTier } from "@/lib/supabase/types";
+import { BUSINESS_TZ, VISIT_DURATION_MIN } from "@/lib/time";
 
 type Args = {
   start_date: string;
   end_date: string;
-  service_type: ServiceTier;
-};
-
-const DURATION_MIN: Record<ServiceTier, number> = {
-  standard: 60,
-  plus: 90,
-  specialist: 120
 };
 
 // Work windows are Mumbai (IST, UTC+5:30) wall-clock hours.
@@ -46,7 +38,7 @@ export async function checkAvailability(args: Args) {
   const taken = new Set<number>(
     (booked.data ?? []).map((r) => new Date(r.slot_start).getTime())
   );
-  const duration = DURATION_MIN[args.service_type];
+  const duration = VISIT_DURATION_MIN;
   const slots: { slot_start: string; slot_end: string; label: string }[] = [];
 
   let day = args.start_date;

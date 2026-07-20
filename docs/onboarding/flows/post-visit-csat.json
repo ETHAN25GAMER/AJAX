@@ -1,0 +1,51 @@
+{
+  "version": "7.0",
+  "screens": [
+    {
+      "id": "CSAT",
+      "title": "Rate your visit",
+      "terminal": true,
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "Form",
+            "name": "form",
+            "children": [
+              {
+                "type": "RadioButtonsGroup",
+                "name": "rating",
+                "label": "How was your service visit?",
+                "required": true,
+                "data-source": [
+                  { "id": "5", "title": "5 — Excellent" },
+                  { "id": "4", "title": "4 — Good" },
+                  { "id": "3", "title": "3 — Okay" },
+                  { "id": "2", "title": "2 — Poor" },
+                  { "id": "1", "title": "1 — Very poor" }
+                ]
+              },
+              {
+                "type": "TextArea",
+                "name": "comment",
+                "label": "Anything we should know? (optional)",
+                "required": false
+              },
+              {
+                "type": "Footer",
+                "label": "Submit rating",
+                "on-click-action": {
+                  "name": "complete",
+                  "payload": {
+                    "rating": "${form.rating}",
+                    "comment": "${form.comment}"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}

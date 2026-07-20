@@ -6,14 +6,13 @@ import { ArrowDown, CalendarOff, ChevronRight, MapPin } from "lucide-react";
 import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
 import { cn } from "@/lib/utils";
 import { dayHeader, dayKey, formatSlotTime } from "@/lib/time";
-import type { AppointmentStatus, ServiceTier } from "@/lib/supabase/types";
+import type { AppointmentStatus } from "@/lib/supabase/types";
 
 export type AssignedAppointment = {
   id: string;
   customer_id: string;
   confirmation_code: string;
   pest_type: string;
-  service_tier: ServiceTier;
   slot_start: string;
   slot_end: string;
   status: AppointmentStatus;
@@ -288,8 +287,6 @@ function JobCard({
         </h3>
         <p className="mt-0.5 text-[12px] text-muted-foreground">
           <span>{appointment.pest_type}</span>
-          <span className="mx-1.5 text-muted-foreground/60">·</span>
-          <span className="capitalize">{appointment.service_tier}</span>
         </p>
         {address && (
           <p className="mt-1.5 flex items-start gap-1 truncate text-[12px] text-muted-foreground">
@@ -388,7 +385,6 @@ function stripAssignment(row: RealtimeAppointmentRow): Omit<AssignedAppointment,
     customer_id: row.customer_id,
     confirmation_code: row.confirmation_code,
     pest_type: row.pest_type,
-    service_tier: row.service_tier,
     slot_start: row.slot_start,
     slot_end: row.slot_end,
     status: row.status,

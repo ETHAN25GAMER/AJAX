@@ -1,7 +1,7 @@
 import { addDays, startOfDay } from "date-fns";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { requireRole } from "@/lib/auth/require-role";
-import type { AppointmentStatus, ServiceTier } from "@/lib/supabase/types";
+import type { AppointmentStatus } from "@/lib/supabase/types";
 import {
   AppointmentsClient,
   type AppointmentWithCustomer,
@@ -16,11 +16,11 @@ type RawAppointment = {
   customer_id: string;
   confirmation_code: string;
   pest_type: string;
-  service_tier: ServiceTier;
   slot_start: string;
   slot_end: string;
   status: AppointmentStatus;
   price_quoted: number | null;
+  reminder_confirmed_at: string | null;
   assigned_technician_id: string | null;
   customers: {
     id: string;
@@ -43,7 +43,7 @@ export default async function AppointmentsPage() {
     supabase
       .from("appointments")
       .select(
-        "id, customer_id, confirmation_code, pest_type, service_tier, slot_start, slot_end, status, price_quoted, assigned_technician_id, customers(id, phone, name)"
+        "id, customer_id, confirmation_code, pest_type, slot_start, slot_end, status, price_quoted, reminder_confirmed_at, assigned_technician_id, customers(id, phone, name)"
       )
       .gte("slot_start", windowStart.toISOString())
       .lt("slot_start", windowEnd.toISOString())
@@ -68,11 +68,11 @@ export default async function AppointmentsPage() {
     customer_id: r.customer_id,
     confirmation_code: r.confirmation_code,
     pest_type: r.pest_type,
-    service_tier: r.service_tier,
     slot_start: r.slot_start,
     slot_end: r.slot_end,
     status: r.status,
     price_quoted: r.price_quoted,
+    reminder_confirmed_at: r.reminder_confirmed_at,
     assigned_technician_id: r.assigned_technician_id,
     customer: r.customers
   }));

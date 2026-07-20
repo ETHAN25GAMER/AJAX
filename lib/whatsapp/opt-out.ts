@@ -1,6 +1,6 @@
 import { supabase } from "@/lib/supabase/client";
 
-// PDPA / Do-Not-Call opt-out handling for inbound WhatsApp.
+// DPDP Act / Do-Not-Disturb opt-out handling for inbound WhatsApp.
 //
 // We match only unambiguous keywords on an exact (whole-message) basis so we
 // never mistake "stop by tomorrow" or "cancel my appointment" for an opt-out.

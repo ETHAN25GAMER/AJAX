@@ -1,6 +1,6 @@
 import type { AreaCount } from "@/lib/kpi/queries";
 
-// Busiest service areas, by Singapore postal region (heatmap grid).
+// Busiest service areas, by Indian PIN sorting district (heatmap grid).
 export function AreasSection({ areas }: { areas: AreaCount[] }) {
   const max = Math.max(...areas.map((a) => a.count), 1);
   const total = areas.reduce((s, a) => s + a.count, 0);

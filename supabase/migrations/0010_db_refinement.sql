@@ -6,7 +6,7 @@
 -- 1. FK covering indexes ------------------------------------------------------
 -- Postgres does not auto-index FK columns. These cover the joins the app makes
 -- constantly (tech RLS policies all join appointments by customer_id) and the
--- cascade/set-null paths on customer/appointment deletion (PDPA erasure).
+-- cascade/set-null paths on customer/appointment deletion (DPDP Act erasure).
 
 create index if not exists appointments_customer_idx
   on appointments (customer_id);

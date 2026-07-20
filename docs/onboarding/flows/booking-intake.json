@@ -1,0 +1,86 @@
+{
+  "version": "7.0",
+  "screens": [
+    {
+      "id": "BOOKING_INTAKE",
+      "title": "Book a visit",
+      "terminal": true,
+      "layout": {
+        "type": "SingleColumnLayout",
+        "children": [
+          {
+            "type": "Form",
+            "name": "form",
+            "children": [
+              {
+                "type": "TextInput",
+                "name": "name",
+                "label": "Your name",
+                "input-type": "text",
+                "required": true
+              },
+              {
+                "type": "TextInput",
+                "name": "address",
+                "label": "Service address",
+                "input-type": "text",
+                "required": true
+              },
+              {
+                "type": "Dropdown",
+                "name": "property_size",
+                "label": "Property size",
+                "required": true,
+                "data-source": [
+                  { "id": "small", "title": "Small (under 1500 sq ft)" },
+                  { "id": "medium", "title": "Medium (1500–3000 sq ft)" },
+                  { "id": "large", "title": "Large (over 3000 sq ft)" }
+                ]
+              },
+              {
+                "type": "Dropdown",
+                "name": "pest_type",
+                "label": "What pest are you seeing?",
+                "required": true,
+                "data-source": [
+                  { "id": "ants", "title": "Ants" },
+                  { "id": "roaches", "title": "Cockroaches" },
+                  { "id": "rats", "title": "Rats / rodents" },
+                  { "id": "termites", "title": "Termites" },
+                  { "id": "bed bugs", "title": "Bed bugs" },
+                  { "id": "wasps", "title": "Wasps" },
+                  { "id": "other", "title": "Something else" }
+                ]
+              },
+              {
+                "type": "Dropdown",
+                "name": "preferred_window",
+                "label": "Preferred time of day",
+                "required": false,
+                "data-source": [
+                  { "id": "morning", "title": "Morning" },
+                  { "id": "afternoon", "title": "Afternoon" },
+                  { "id": "evening", "title": "Evening" }
+                ]
+              },
+              {
+                "type": "Footer",
+                "label": "Request booking",
+                "on-click-action": {
+                  "name": "complete",
+                  "payload": {
+                    "name": "${form.name}",
+                    "address": "${form.address}",
+                    "property_size": "${form.property_size}",
+                    "pest_type": "${form.pest_type}",
+                    "preferred_window": "${form.preferred_window}"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}

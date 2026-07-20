@@ -1,4 +1,4 @@
--- PestLLM: PDPA opt-out. Customers can reply STOP to stop proactive outreach
+-- PestLLM: DPDP Act opt-out. Customers can reply STOP to stop proactive outreach
 -- (re-engagement nudges, future marketing/review requests). Inbound messages are
 -- still answered — replying to someone who messaged you isn't unsolicited.
 

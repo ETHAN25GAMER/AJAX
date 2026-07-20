@@ -1,45 +1,25 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { BUSINESS_TZ, parseBusinessTime } from "@/lib/time";
 import { formatInTimeZone } from "date-fns-tz";
-import type { ServiceTier } from "@/lib/supabase/types";
 
-const TIER_LIST: ServiceTier[] = ["standard", "plus", "specialist"];
-
-export type TierAverages = Record<ServiceTier, number>;
-
-// Average non-zero base price per tier, from the pricing rate card. Used to
-// *estimate* a job's value when `price_quoted` was never recorded (the booking
-// tool doesn't write it today), so revenue figures aren't perpetually $0.
-export async function computeTierAverages(sb: SupabaseClient): Promise<TierAverages> {
-  const { data } = await sb.from("pricing").select("service_tier, base_price");
-  const rows = (data ?? []) as Array<{ service_tier: ServiceTier; base_price: number | null }>;
-  const acc: Record<ServiceTier, { sum: number; n: number }> = {
-    standard: { sum: 0, n: 0 },
-    plus: { sum: 0, n: 0 },
-    specialist: { sum: 0, n: 0 }
-  };
-  for (const r of rows) {
-    const b = r.base_price ?? 0;
-    if (b > 0 && acc[r.service_tier]) {
-      acc[r.service_tier].sum += b;
-      acc[r.service_tier].n += 1;
-    }
-  }
-  const out = {} as TierAverages;
-  for (const t of TIER_LIST) out[t] = acc[t].n === 0 ? 0 : acc[t].sum / acc[t].n;
-  return out;
+// Average non-zero base price across the (flat, one-row-per-pest) rate card.
+// Used to *estimate* a job's value when `price_quoted` was never recorded (the
+// booking tool doesn't write it today), so revenue figures aren't perpetually $0.
+export async function computePriceBaseline(sb: SupabaseClient): Promise<number> {
+  const { data } = await sb.from("pricing").select("base_price");
+  const prices = ((data ?? []) as Array<{ base_price: number | null }>)
+    .map((r) => r.base_price ?? 0)
+    .filter((b) => b > 0);
+  if (prices.length === 0) return 0;
+  return prices.reduce((a, b) => a + b, 0) / prices.length;
 }
 
-// A job's value: the recorded quote if present, else the tier-average estimate.
-export function valueOf(
-  priceQuoted: number | null,
-  tier: ServiceTier,
-  tierAvgs: TierAverages
-): number {
-  return priceQuoted ?? tierAvgs[tier] ?? 0;
+// A job's value: the recorded quote if present, else the rate-card baseline.
+export function valueOf(priceQuoted: number | null, baseline: number): number {
+  return priceQuoted ?? baseline ?? 0;
 }
 
-// All KPI helpers take a Singapore-local date range. Callers should construct
+// All KPI helpers take an IST-local date range. Callers should construct
 // `from`/`to` via `rangeForKpi()` so the cutoffs match the calendar buckets the
 // rest of the app uses.
 
@@ -47,7 +27,7 @@ export type KpiRange = "week" | "month" | "quarter";
 
 export type DateRange = { from: Date; to: Date; previousFrom: Date; previousTo: Date };
 
-// Compute current and previous period boundaries in Singapore time.
+// Compute current and previous period boundaries in IST.
 export function rangeForKpi(range: KpiRange, now = new Date()): DateRange {
   const today = formatInTimeZone(now, BUSINESS_TZ, "yyyy-MM-dd");
   const todayMidnight = parseBusinessTime(`${today}T00:00:00`);
@@ -80,24 +60,26 @@ export type FinancialKpis = {
   previousRevenue: number;
   completedCount: number;
   avgTicket: number;
-  byTier: Record<ServiceTier, { revenue: number; count: number }>;
+  // Top pests by estimated revenue in the range (flat service — the old
+  // by-tier split went away with service tiers in migration 0020).
+  byPest: Array<{ pest: string; revenue: number; count: number }>;
 };
 
 export async function computeFinancialKpis(
   sb: SupabaseClient,
   range: DateRange,
-  tierAvgs: TierAverages
+  baseline: number
 ): Promise<FinancialKpis> {
   const [current, previous] = await Promise.all([
     sb
       .from("appointments")
-      .select("price_quoted, service_tier")
+      .select("price_quoted, pest_type")
       .eq("status", "completed")
       .gte("completed_at", range.from.toISOString())
       .lt("completed_at", range.to.toISOString()),
     sb
       .from("appointments")
-      .select("price_quoted, service_tier")
+      .select("price_quoted")
       .eq("status", "completed")
       .gte("completed_at", range.previousFrom.toISOString())
       .lt("completed_at", range.previousTo.toISOString())
@@ -105,30 +87,29 @@ export async function computeFinancialKpis(
 
   const rows = (current.data ?? []) as Array<{
     price_quoted: number | null;
-    service_tier: ServiceTier;
+    pest_type: string;
   }>;
-  const prevRows = (previous.data ?? []) as Array<{
-    price_quoted: number | null;
-    service_tier: ServiceTier;
-  }>;
+  const prevRows = (previous.data ?? []) as Array<{ price_quoted: number | null }>;
 
-  const revenue = sumValue(rows, tierAvgs);
-  const previousRevenue = sumValue(prevRows, tierAvgs);
+  const revenue = sumValue(rows, baseline);
+  const previousRevenue = sumValue(prevRows, baseline);
   const completedCount = rows.length;
   const avgTicket = completedCount === 0 ? 0 : revenue / completedCount;
 
-  const byTier: FinancialKpis["byTier"] = {
-    standard: { revenue: 0, count: 0 },
-    plus: { revenue: 0, count: 0 },
-    specialist: { revenue: 0, count: 0 }
-  };
+  const pestBuckets = new Map<string, { revenue: number; count: number }>();
   for (const r of rows) {
-    const bucket = byTier[r.service_tier];
+    const key = r.pest_type || "unknown";
+    const bucket = pestBuckets.get(key) ?? { revenue: 0, count: 0 };
     bucket.count++;
-    bucket.revenue += valueOf(r.price_quoted, r.service_tier, tierAvgs);
+    bucket.revenue += valueOf(r.price_quoted, baseline);
+    pestBuckets.set(key, bucket);
   }
+  const byPest = Array.from(pestBuckets.entries())
+    .map(([pest, v]) => ({ pest, ...v }))
+    .sort((a, b) => b.revenue - a.revenue)
+    .slice(0, 5);
 
-  return { revenue, previousRevenue, completedCount, avgTicket, byTier };
+  return { revenue, previousRevenue, completedCount, avgTicket, byPest };
 }
 
 // ---------- AMC -------------------------------------------------------------
@@ -192,7 +173,7 @@ export type TechnicianKpi = {
 export async function computeTechnicianKpis(
   sb: SupabaseClient,
   range: DateRange,
-  tierAvgs: TierAverages
+  baseline: number
 ): Promise<TechnicianKpi[]> {
   const [techs, appts] = await Promise.all([
     sb
@@ -202,7 +183,7 @@ export async function computeTechnicianKpis(
     sb
       .from("appointments")
       .select(
-        "id, assigned_technician_id, status, slot_start, slot_end, completed_at, customer_id, price_quoted, service_tier"
+        "id, assigned_technician_id, status, slot_start, slot_end, completed_at, customer_id, price_quoted"
       )
       .gte("slot_start", range.from.toISOString())
       .lt("slot_start", range.to.toISOString())
@@ -223,7 +204,6 @@ export async function computeTechnicianKpis(
     completed_at: string | null;
     customer_id: string;
     price_quoted: number | null;
-    service_tier: ServiceTier;
   }>;
 
   // Photo + escalation lookups are cheaper as a single batch each.
@@ -282,7 +262,7 @@ export async function computeTechnicianKpis(
         completed.length === 0 ? 1 : completedWithPhoto / completed.length;
 
       const revenue = completed.reduce(
-        (sum, a) => sum + valueOf(a.price_quoted, a.service_tier, tierAvgs),
+        (sum, a) => sum + valueOf(a.price_quoted, baseline),
         0
       );
 
@@ -363,10 +343,10 @@ export async function computeOperationalKpis(
 }
 
 function sumValue(
-  rows: Array<{ price_quoted: number | null; service_tier: ServiceTier }>,
-  tierAvgs: TierAverages
+  rows: Array<{ price_quoted: number | null }>,
+  baseline: number
 ): number {
-  return rows.reduce((s, r) => s + valueOf(r.price_quoted, r.service_tier, tierAvgs), 0);
+  return rows.reduce((s, r) => s + valueOf(r.price_quoted, baseline), 0);
 }
 
 // ---------- Revenue trend (line chart) --------------------------------------
@@ -377,14 +357,14 @@ export type RevenuePoint = { label: string; value: number; forecast: boolean };
 // projected months (last actual + average of the last 3 month-over-month deltas).
 export async function computeRevenueTrend(
   sb: SupabaseClient,
-  tierAvgs: TierAverages,
+  baseline: number,
   opts: { months?: number; forecast?: number } = {}
 ): Promise<RevenuePoint[]> {
   const months = opts.months ?? 6;
   const forecast = opts.forecast ?? 2;
 
   const now = new Date();
-  // First day of the month, `months - 1` months back, in Singapore time.
+  // First day of the month, `months - 1` months back, in IST.
   const firstOfThisMonth = parseBusinessTime(
     `${formatInTimeZone(now, BUSINESS_TZ, "yyyy-MM")}-01T00:00:00`
   );
@@ -393,13 +373,12 @@ export async function computeRevenueTrend(
 
   const { data } = await sb
     .from("appointments")
-    .select("price_quoted, service_tier, completed_at")
+    .select("price_quoted, completed_at")
     .eq("status", "completed")
     .gte("completed_at", start.toISOString());
 
   const rows = (data ?? []) as Array<{
     price_quoted: number | null;
-    service_tier: ServiceTier;
     completed_at: string | null;
   }>;
 
@@ -416,7 +395,7 @@ export async function computeRevenueTrend(
     if (!r.completed_at) continue;
     const k = formatInTimeZone(new Date(r.completed_at), BUSINESS_TZ, "yyyy-MM");
     if (totals.has(k)) {
-      totals.set(k, totals.get(k)! + valueOf(r.price_quoted, r.service_tier, tierAvgs));
+      totals.set(k, totals.get(k)! + valueOf(r.price_quoted, baseline));
     }
   }
 
@@ -491,22 +470,9 @@ export async function computeFunnel(sb: SupabaseClient, range: DateRange): Promi
   return stages.map((s) => ({ ...s, pct: Math.min(100, (s.n / top) * 100) }));
 }
 
-// ---------- Busiest areas (SG postal region) --------------------------------
+// ---------- Busiest areas (Indian PIN code) ----------------------------------
 
 export type AreaCount = { region: string; count: number };
-
-// Singapore postal sector (first 2 digits of a 6-digit code) → coarse region.
-// Reference: URA/SingPost postal districts grouped into 5 regions.
-const SECTOR_REGION: Record<string, string> = {};
-(() => {
-  const add = (region: string, sectors: number[]) =>
-    sectors.forEach((s) => (SECTOR_REGION[String(s).padStart(2, "0")] = region));
-  add("Central", [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 38, 39, 40, 41, 58, 59]);
-  add("East", [42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 81]);
-  add("North-East", [53, 54, 55, 82, 56, 57]);
-  add("North", [69, 70, 71, 72, 73, 75, 76, 77, 78, 79, 80]);
-  add("West", [60, 61, 62, 63, 64, 65, 66, 67, 68, 17]);
-})();
 
 export async function computeAreaDistribution(
   sb: SupabaseClient,
@@ -533,10 +499,173 @@ export async function computeAreaDistribution(
     .sort((a, b) => b.count - a.count);
 }
 
+// Bucket by the PIN's first 3 digits (the India Post sorting district — a
+// coherent local area within a city, e.g. all of 400xxx is Mumbai). Works in
+// any Indian city without a hardcoded map; the heatmap shows the districts the
+// business actually serves.
 function regionFromAddress(address: string | null): string {
   if (!address) return "Unknown";
-  const m = address.match(/\b(\d{6})\b/);
+  const m = address.match(/\b([1-9]\d{5})\b/);
   if (!m) return "Unknown";
-  const sector = m[1].slice(0, 2);
-  return SECTOR_REGION[sector] ?? "Unknown";
+  return `PIN ${m[1].slice(0, 3)}xxx`;
+}
+
+// --- Feedback (post-visit CSAT) ---------------------------------------------
+
+export type FeedbackKpis = {
+  responses: number;
+  avgRating: number | null;
+  previousAvg: number | null;
+  promoters: number; // rated 4-5
+  detractors: number; // rated 1-2
+  latestComments: Array<{ rating: number; comment: string; created_at: string }>;
+};
+
+export async function computeFeedbackKpis(
+  sb: SupabaseClient,
+  range: DateRange
+): Promise<FeedbackKpis> {
+  const [current, previous] = await Promise.all([
+    sb
+      .from("feedback")
+      .select("rating, comment, created_at")
+      .gte("created_at", range.from.toISOString())
+      .lt("created_at", range.to.toISOString())
+      .order("created_at", { ascending: false }),
+    sb
+      .from("feedback")
+      .select("rating")
+      .gte("created_at", range.previousFrom.toISOString())
+      .lt("created_at", range.previousTo.toISOString())
+  ]);
+
+  const rows = (current.data ?? []) as Array<{
+    rating: number;
+    comment: string | null;
+    created_at: string;
+  }>;
+  const prevRows = (previous.data ?? []) as Array<{ rating: number }>;
+
+  const avg = (xs: number[]) =>
+    xs.length === 0 ? null : xs.reduce((a, b) => a + b, 0) / xs.length;
+
+  return {
+    responses: rows.length,
+    avgRating: avg(rows.map((r) => r.rating)),
+    previousAvg: avg(prevRows.map((r) => r.rating)),
+    promoters: rows.filter((r) => r.rating >= 4).length,
+    detractors: rows.filter((r) => r.rating <= 2).length,
+    latestComments: rows
+      .filter((r) => r.comment && r.comment.trim() !== "")
+      .slice(0, 3)
+      .map((r) => ({ rating: r.rating, comment: r.comment!.trim(), created_at: r.created_at }))
+  };
+}
+
+// --- Lead sources (click-to-WhatsApp ad attribution) -------------------------
+
+export type LeadSource = { source: string; count: number };
+
+// New customers in range, grouped by first-touch acquisition. Customers with no
+// stamped referral are "organic" (they messaged the number directly).
+export async function computeLeadSources(
+  sb: SupabaseClient,
+  range: DateRange
+): Promise<LeadSource[]> {
+  const { data } = await sb
+    .from("customers")
+    .select("acquisition")
+    .gte("created_at", range.from.toISOString())
+    .lt("created_at", range.to.toISOString());
+
+  const counts = new Map<string, number>();
+  for (const row of (data ?? []) as Array<{ acquisition: { source_type?: string | null; headline?: string | null } | null }>) {
+    const a = row.acquisition;
+    const source = a ? `${a.source_type ?? "ad"}${a.headline ? ` · ${a.headline}` : ""}` : "organic";
+    counts.set(source, (counts.get(source) ?? 0) + 1);
+  }
+  return Array.from(counts.entries())
+    .map(([source, count]) => ({ source, count }))
+    .sort((a, b) => b.count - a.count);
+}
+
+// --- SLA / responsiveness ----------------------------------------------------
+
+export type SlaEvent = {
+  conversation_id: string;
+  direction: "inbound" | "outbound_agent" | "outbound_staff";
+  at: string;
+};
+
+export type SlaKpis = {
+  inboundCount: number;
+  agentReplies: number;
+  staffReplies: number;
+  /** Median first-reply latency in ms, null when no pairs exist. */
+  medianReplyMs: number | null;
+  /** 90th-percentile first-reply latency in ms. */
+  p90ReplyMs: number | null;
+  /** Share of outbound replies sent by a human (0..1), null when no outbound. */
+  staffShare: number | null;
+};
+
+// Pure: pair each inbound with the NEXT outbound in the same conversation and
+// return the latencies. Consecutive inbounds before one reply collapse to the
+// first (the customer double-texted; the wait started at their first message).
+// Exported for direct testing.
+export function pairFirstReplies(events: SlaEvent[]): number[] {
+  const byConvo = new Map<string, SlaEvent[]>();
+  for (const e of events) {
+    const list = byConvo.get(e.conversation_id) ?? [];
+    list.push(e);
+    byConvo.set(e.conversation_id, list);
+  }
+
+  const latencies: number[] = [];
+  for (const list of byConvo.values()) {
+    list.sort((a, b) => new Date(a.at).getTime() - new Date(b.at).getTime());
+    let pendingInboundAt: number | null = null;
+    for (const e of list) {
+      if (e.direction === "inbound") {
+        if (pendingInboundAt === null) pendingInboundAt = new Date(e.at).getTime();
+      } else if (pendingInboundAt !== null) {
+        latencies.push(new Date(e.at).getTime() - pendingInboundAt);
+        pendingInboundAt = null;
+      }
+    }
+  }
+  return latencies;
+}
+
+export function percentile(sortedAsc: number[], p: number): number | null {
+  if (sortedAsc.length === 0) return null;
+  const idx = Math.min(sortedAsc.length - 1, Math.ceil((p / 100) * sortedAsc.length) - 1);
+  return sortedAsc[Math.max(0, idx)];
+}
+
+export async function computeSlaKpis(sb: SupabaseClient, range: DateRange): Promise<SlaKpis> {
+  const { data } = await sb
+    .from("message_events")
+    .select("conversation_id, direction, at")
+    .gte("at", range.from.toISOString())
+    .lt("at", range.to.toISOString())
+    .order("at", { ascending: true })
+    .limit(10_000);
+
+  const events = (data ?? []) as SlaEvent[];
+  const inboundCount = events.filter((e) => e.direction === "inbound").length;
+  const agentReplies = events.filter((e) => e.direction === "outbound_agent").length;
+  const staffReplies = events.filter((e) => e.direction === "outbound_staff").length;
+  const outbound = agentReplies + staffReplies;
+
+  const latencies = pairFirstReplies(events).sort((a, b) => a - b);
+
+  return {
+    inboundCount,
+    agentReplies,
+    staffReplies,
+    medianReplyMs: percentile(latencies, 50),
+    p90ReplyMs: percentile(latencies, 90),
+    staffShare: outbound === 0 ? null : staffReplies / outbound
+  };
 }

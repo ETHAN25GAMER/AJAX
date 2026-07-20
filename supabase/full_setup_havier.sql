@@ -1,7 +1,13 @@
 -- =============================================================
 -- Havier Pest Control — FULL SETUP (schema + seed)
--- Run this ONCE in Supabase SQL Editor on a fresh project.
--- It is safe to re-run (all statements are idempotent).
+--
+-- ⚠️  DEPRECATED SNAPSHOT — do not use for new deployments.
+-- This file predates migrations 0011–0020 (human takeover, recovery,
+-- campaigns, feedback, payments, tier removal, CRM, SLA events,
+-- journeys, service-tier removal) and would bootstrap an outdated
+-- schema (including the removed service_tier columns).
+-- Instead: run supabase/setup_full.sql (one file, generated from
+-- all migrations in order), then supabase/seed_havier.sql.
 -- =============================================================
 
 

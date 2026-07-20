@@ -4,11 +4,12 @@ import {
   AlertTriangle,
   BarChart3,
   CalendarDays,
+  Contact,
   FileClock,
-  Lock,
+  Megaphone,
   MessageSquare,
   Navigation,
-  Settings,
+  Route,
   Tag,
   Users,
   LogOut,
@@ -18,13 +19,11 @@ import { requireRole } from "@/lib/auth/require-role";
 import { signOut } from "@/lib/auth/actions";
 import { Button } from "@/components/ui/button";
 import { BRAND } from "@/lib/brand";
-import { getDeploymentTier } from "@/lib/tier";
 
 type NavItem = {
   href: string;
   label: string;
   icon: LucideIcon;
-  tierGated?: boolean;
 };
 
 const nav: NavItem[] = [
@@ -34,15 +33,16 @@ const nav: NavItem[] = [
   { href: "/admin/dispatch", label: "Dispatch", icon: Navigation },
   { href: "/admin/amc", label: "AMC", icon: FileClock },
   { href: "/admin/conversations", label: "Conversations", icon: MessageSquare },
-  { href: "/admin/kpi", label: "KPI", icon: BarChart3, tierGated: true },
+  { href: "/admin/customers", label: "Customers", icon: Contact },
+  { href: "/admin/campaigns", label: "Campaigns", icon: Megaphone },
+  { href: "/admin/journeys", label: "Journeys", icon: Route },
+  { href: "/admin/kpi", label: "KPI", icon: BarChart3 },
   { href: "/admin/pricing", label: "Pricing", icon: Tag },
-  { href: "/admin/users", label: "Users", icon: Users },
-  { href: "/admin/settings", label: "Settings", icon: Settings }
+  { href: "/admin/users", label: "Users", icon: Users }
 ];
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   const session = await requireRole("admin");
-  const tier = await getDeploymentTier();
 
   return (
     <div className="flex min-h-dvh">
@@ -55,25 +55,16 @@ export default async function AdminLayout({ children }: { children: React.ReactN
         </div>
 
         <nav className="flex-1 space-y-0.5 p-2">
-          {nav.map(({ href, label, icon: Icon, tierGated }) => {
-            const locked = tierGated && tier !== "tier3";
-            return (
-              <Link
-                key={href}
-                href={href}
-                className="flex items-center gap-2 rounded-md px-3 py-2 text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
-              >
-                <Icon className="h-4 w-4" />
-                <span className="flex-1">{label}</span>
-                {locked && (
-                  <Lock
-                    aria-label="Tier 3 only"
-                    className="h-3 w-3 text-muted-foreground/60"
-                  />
-                )}
-              </Link>
-            );
-          })}
+          {nav.map(({ href, label, icon: Icon }) => (
+            <Link
+              key={href}
+              href={href}
+              className="flex items-center gap-2 rounded-md px-3 py-2 text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
+            >
+              <Icon className="h-4 w-4" />
+              <span className="flex-1">{label}</span>
+            </Link>
+          ))}
         </nav>
 
         <div className="border-t p-3 text-xs text-muted-foreground">

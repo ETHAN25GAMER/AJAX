@@ -28,7 +28,7 @@ import { createSupabaseBrowserClient } from "@/lib/supabase/browser";
 import { cn } from "@/lib/utils";
 import { formatSlotTime, dayHeader } from "@/lib/time";
 import { RelativeTime } from "@/components/relative-time";
-import type { AppointmentStatus, ServiceTier, TrackingState, Urgency } from "@/lib/supabase/types";
+import type { AppointmentStatus, TrackingState, Urgency } from "@/lib/supabase/types";
 import {
   createEscalation,
   endTrip,
@@ -52,7 +52,6 @@ export type JobDetail = {
   customer_id: string;
   confirmation_code: string;
   pest_type: string;
-  service_tier: ServiceTier;
   slot_start: string;
   slot_end: string;
   status: AppointmentStatus;
@@ -106,8 +105,6 @@ export function JobDetailClient({ initial }: { initial: JobDetail }) {
           </h1>
           <p className="mt-2 text-[14px] text-muted-foreground">
             <span>{initial.pest_type}</span>
-            <span className="mx-1.5 text-muted-foreground/60">·</span>
-            <span className="capitalize">{initial.service_tier}</span>
             {initial.price_quoted != null && (
               <>
                 <span className="mx-1.5 text-muted-foreground/60">·</span>
